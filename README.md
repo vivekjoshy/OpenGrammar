@@ -1,2 +1,2 @@
 # OpenGrammar
-Universal Grammar Parser 
+Formal Logic to Natural Language Translator

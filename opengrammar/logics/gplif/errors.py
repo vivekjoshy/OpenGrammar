@@ -1,16 +1,16 @@
-from typing import Set, Union
+from typing import Dict, List, Set, Union
 
 from lark import UnexpectedInput
 
-from opengrammar.logics.gplif.syntax import Variable, Function, Predicate
 from opengrammar import _
+from opengrammar.logics.gplif.syntax import Function, Predicate, Variable
 
 
 class UnboundVariableError(UnexpectedInput):
-    def __init__(self, formula: str, variables: Set[Variable]):
+    def __init__(self, formula: str, variables: List[Variable]):
         self.formula = formula
         self.variables = variables
-        self.ordered_variables = list(self.variables)
+        self.ordered_variables = self.variables
         self.formula_length = len(self.formula)
         self.column_start = self.ordered_variables[0].token.column - 1
         self.column_end = self.ordered_variables[-1].token.end_column - 1
@@ -25,7 +25,7 @@ class UnboundVariableError(UnexpectedInput):
             "{spaces}{indicator}"
         ).format(
             variables=self.variables,
-            column_start=self.column_start,
+            column_start=self.column_start + 1,
             formula=self.formula,
             spaces=self.spaces,
             indicator=self.indicator,
@@ -52,7 +52,7 @@ class MultipleDispatchError(UnexpectedInput):
                 "{spaces}{indicator}"
             ).format(
                 function=self.symbol.symbol,
-                column_start=self.column_start,
+                column_start=self.column_start + 1,
                 formula=self.formula,
                 spaces=self.spaces,
                 indicator=self.indicator,
@@ -65,7 +65,7 @@ class MultipleDispatchError(UnexpectedInput):
                 "{spaces}{indicator}"
             ).format(
                 predicate=self.symbol.symbol,
-                column_start=self.column_start,
+                column_start=self.column_start + 1,
                 formula=self.formula,
                 spaces=self.spaces,
                 indicator=self.indicator,

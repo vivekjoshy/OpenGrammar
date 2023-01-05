@@ -1,7 +1,10 @@
-from opengrammar.logics.gplif import GPLIFFormulaParser
+from lark import Token
+
+from opengrammar.logics.gplif import Function, GPLIFFormulaParser
+from opengrammar.logics.gplif.syntax import Name, Predicate
 
 
-def test_syntax():
+def test_wff():
 
     # Well Formed Formulas
     input_formulas = [
@@ -35,7 +38,30 @@ def test_syntax():
         r"(P(a) ∨ ¬∀y(Q(b) ∨ R(c)))",
     ]
 
+    assert len(input_formulas) == len(output_formulas)
+
     for input_formula, output_formula in zip(input_formulas, output_formulas):
         parser = GPLIFFormulaParser(formula=input_formula)
         output_syntax_tree = parser.syntax_tree
         assert repr(output_syntax_tree) == output_formula
+
+
+def test_equality():
+    # Manual Tests for Equality
+    terms = [Name("a"), Name("b"), Name("c")]
+
+    f = Function("f", *terms, token=Token("FUNCTION_NAME", "f"))
+    g = Function("g", *terms, token=Token("FUNCTION_NAME", "g"))
+    h = Function("h", *terms[:1], token=Token("FUNCTION_NAME", "h"))
+
+    assert f != g
+    assert f == f
+    assert f != h
+
+    p = Predicate("P", *terms, token=Token("PREDICATE_NAME", "P"))
+    q = Predicate("Q", *terms, token=Token("PREDICATE_NAME", "Q"))
+    r = Predicate("R", *terms[:1], token=Token("PREDICATE_NAME", "R"))
+
+    assert p != q
+    assert p == p
+    assert p != r

@@ -1,10 +1,10 @@
 from collections import Counter
 from functools import reduce
-from typing import Type, Union, Optional, List
+from typing import List, Optional, Type, Union
 
 from lark import Transformer
 
-from opengrammar.logics.gplif.errors import UnboundVariableError, MultipleDispatchError
+from opengrammar.logics.gplif.errors import MultipleDispatchError, UnboundVariableError
 from opengrammar.logics.gplif.syntax import (
     BiConditional,
     BinaryConnective,
@@ -21,9 +21,9 @@ from opengrammar.logics.gplif.syntax import (
     Predicate,
     Quantifier,
     Term,
+    UnaryConnective,
     UniversalQuantifier,
     Variable,
-    UnaryConnective,
 )
 
 

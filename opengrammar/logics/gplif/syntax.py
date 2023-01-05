@@ -1,7 +1,8 @@
-from opengrammar import _
-from typing import List, Union, Optional
+from typing import List, Optional, Union
 
 from lark import Token
+
+from opengrammar import _
 
 
 class Operator:
@@ -36,9 +37,6 @@ class UnaryConnective(Connective):
 
         # Meta Theoretic
         self.parenthesized = False
-
-        if isinstance(self.clause, Predicate):
-            self.atomic = True
 
 
 class BinaryConnective(Connective):
@@ -145,6 +143,7 @@ class IdentityPredicate(Predicate):
     def __init__(self, *terms: List[Term]):
         self.symbol = "I"
         self.terms = terms
+        self.arity = len(terms)
         super().__init__(self.symbol, *self.terms)
 
     def __repr__(self):
@@ -188,10 +187,7 @@ class Negation(UnaryConnective):
 
 class Conjunction(BinaryConnective):
     def __repr__(self):
-        if self.parenthesized:
-            return f"({repr(self.antecedent)} ∧ {repr(self.consequent)})"
-        else:
-            return f"{repr(self.antecedent)} ∧ {repr(self.consequent)}"
+        return f"({repr(self.antecedent)} ∧ {repr(self.consequent)})"
 
     def __str__(self):
         return _("")
@@ -199,10 +195,7 @@ class Conjunction(BinaryConnective):
 
 class Disjunction(BinaryConnective):
     def __repr__(self):
-        if self.parenthesized:
-            return f"({repr(self.antecedent)} ∨ {repr(self.consequent)})"
-        else:
-            return f"{repr(self.antecedent)} ∨ {repr(self.consequent)}"
+        return f"({repr(self.antecedent)} ∨ {repr(self.consequent)})"
 
     def __str__(self):
         return _("")
@@ -210,10 +203,7 @@ class Disjunction(BinaryConnective):
 
 class Conditional(BinaryConnective):
     def __repr__(self):
-        if self.parenthesized:
-            return f"({repr(self.antecedent)} → {repr(self.consequent)})"
-        else:
-            return f"{repr(self.antecedent)} → {repr(self.consequent)}"
+        return f"({repr(self.antecedent)} → {repr(self.consequent)})"
 
     def __str__(self):
         return _("")
@@ -221,10 +211,7 @@ class Conditional(BinaryConnective):
 
 class BiConditional(BinaryConnective):
     def __repr__(self):
-        if self.parenthesized:
-            return f"({repr(self.antecedent)} ↔ {repr(self.consequent)})"
-        else:
-            return f"{repr(self.antecedent)} ↔ {repr(self.consequent)}"
+        return f"({repr(self.antecedent)} ↔ {repr(self.consequent)})"
 
     def __str__(self):
         return _("")

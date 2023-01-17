@@ -1,6 +1,7 @@
 import functools
 import os
-from queue import Queue
+from collections import defaultdict
+from queue import LifoQueue, Queue
 from typing import Dict, List, Set, Union
 
 from lark import Lark
@@ -9,6 +10,7 @@ from opengrammar.logics.gplif.errors import MultipleDispatchError, UnboundVariab
 from opengrammar.logics.gplif.syntax import (
     BinaryConnective,
     Function,
+    Name,
     Predicate,
     Quantifier,
     UnaryConnective,
@@ -37,23 +39,17 @@ class GPLIFFormulaParser:
         # Syntax Tree
         self.syntax_tree = self.transformer.transform(self.parse_tree)
 
+        # Syntax Checks
+        self.traverse_syntax_tree()
 
-class GPLIFModel:
-    def __init__(self, parsers: List[GPLIFFormulaParser]):
-        self.parsers = parsers
-
-        for parser in self.parsers:
-            self.current_wff = parser.formula
-            self.traverse_syntax_tree(parser)
-
-    def traverse_syntax_tree(self, parser: GPLIFFormulaParser):
+    def traverse_syntax_tree(self):
         formulas = Queue()
-        formulas.put(parser.syntax_tree)
+        formulas.put(self.syntax_tree)
 
-        # Semantic Cache
-        scope: List[Variable] = []
-        predicates: Dict[Predicate, int] = dict()
-        functions: Dict[Function, int] = dict()
+        # Syntax Cache
+        scope_cache: Dict[Variable, int] = {}
+        predicate_cache: List[Predicate] = []
+        function_cache: List[Function] = []
 
         # Top-Down Traversal
         while not formulas.empty():
@@ -64,79 +60,108 @@ class GPLIFModel:
             # Check Type of Formula
             if isinstance(current_formula, Predicate):
 
-                # Populate Predicate Arity Cache
-                predicates[current_formula] = 1 + predicates.get(current_formula, 0)
-                predicate_symbol = current_formula.symbol
-                current_predicates = list(
-                    filter(lambda _: _.symbol == predicate_symbol, predicates.keys())
-                )
-                equal_arity = (
-                    bool(
-                        functools.reduce(
-                            lambda a, b: a.arity == b.arity, current_predicates
-                        )
-                    )
-                    if current_predicates
-                    else True
-                )
-                for current_predicate in current_predicates:
-                    if predicates.get(current_predicate) and not equal_arity:
-                        raise MultipleDispatchError(
-                            formula=self.current_wff, symbol=current_formula
-                        )
-
-                # Populate Function Arity Cache
-                for key, val in self.extract_functions(current_formula).items():
-                    functions[key] = val
-
-                for fn in functions:
-                    functions[fn] = 1 + functions.get(fn, 0)
-                    fn_symbol = fn.symbol
-                    current_functions = list(
-                        filter(lambda _: _.symbol == fn_symbol, functions.keys())
-                    )
-                    equal_arity = (
-                        bool(
-                            functools.reduce(
-                                lambda a, b: a.arity == b.arity, current_functions
-                            )
-                        )
-                        if current_functions
-                        else True
-                    )
-                    for current_function in current_functions:
-                        if functions.get(current_function) and not equal_arity:
-                            raise MultipleDispatchError(
-                                formula=self.current_wff, symbol=fn
-                            )
+                # Prevent duplicate relations with different arity
+                predicate_cache.append(current_formula)
+                functions = self.extract_functions(current_formula)
+                for f, c in functions.items():
+                    function_cache.append(f)
 
                 # Check Unbound Variable
                 current_variables = self.variables_from_predicate(current_formula)
-                scope = list(dict.fromkeys(scope))
-                if scope:
-                    if current_variables:
-                        for variable in current_variables:
-                            if variable in scope:
-                                scope.remove(variable)
-                            else:
-                                raise UnboundVariableError(
-                                    formula=self.current_wff, variables=[variable]
-                                )
-                    else:
-                        pass
-                else:
-                    if current_variables:
-                        raise UnboundVariableError(
-                            formula=self.current_wff, variables=current_variables
-                        )
+                if scope_cache and current_variables:
+                    for variable in current_variables:
+                        if scope_cache.get(variable):
+                            scope_cache[variable] -= 1
+                elif current_variables:
+                    raise UnboundVariableError(
+                        formula=self.formula, variables=current_variables
+                    )
+
+                unscoped_variables = []
+                for variable in current_variables:
+                    if variable not in scope_cache.keys():
+                        unscoped_variables.append(variable)
+
+                if unscoped_variables:
+                    raise UnboundVariableError(
+                        formula=self.formula, variables=unscoped_variables
+                    )
+
             elif isinstance(current_formula, UnaryConnective):
                 formulas.put(current_formula.clause)
             elif isinstance(current_formula, BinaryConnective):
                 formulas.put(current_formula.antecedent)
                 formulas.put(current_formula.consequent)
             elif isinstance(current_formula, Quantifier):
-                scope.append(current_formula.variable)
+                if current_formula.variable in scope_cache:
+                    scope_cache[
+                        current_formula.variable
+                    ] += self.count_variables_in_scope(current_formula)
+                else:
+                    scope_cache[
+                        current_formula.variable
+                    ] = self.count_variables_in_scope(current_formula)
                 formulas.put(current_formula.clause)
+
+            # Raise Multiple Dispatch Error for Predicates
+            predicates = defaultdict(list)
+            for p in predicate_cache:
+                predicates[p.symbol].append(p)
+
+            for symbol, predicate_list in predicates.items():
+                equal_arity = bool(
+                    functools.reduce(lambda a, b: a.arity == b.arity, predicate_list)
+                )
+                if not equal_arity:
+                    raise MultipleDispatchError(
+                        formula=self.formula, relations=predicate_list
+                    )
+
+            # Raise Multiple Dispatch Error for Functions
+            functions = defaultdict(list)
+            for f in function_cache:
+                functions[f.symbol].append(f)
+
+            for symbol, functions_list in functions.items():
+                equal_arity = bool(
+                    functools.reduce(lambda a, b: a.arity == b.arity, functions_list)
+                )
+                if not equal_arity:
+                    raise MultipleDispatchError(
+                        formula=self.formula, relations=functions_list
+                    )
+
+    def count_variables_in_scope(self, quantifier: Quantifier) -> int:
+        scope = quantifier.variable
+        clause = quantifier.clause
+        formulas = Queue()
+        formulas.put(clause)
+
+        count = 0
+
+        # Top-Down Traversal
+        while not formulas.empty():
+
+            # Get Latest Formula
+            current_formula = formulas.get()
+
+            if isinstance(current_formula, Predicate):
+                variables = list(
+                    filter(
+                        lambda _: _ == scope,
+                        self.variables_from_predicate(current_formula),
+                    )
+                )
+                count += len(variables)
+            elif isinstance(current_formula, UnaryConnective):
+                formulas.put(current_formula.clause)
+            elif isinstance(current_formula, BinaryConnective):
+                formulas.put(current_formula.antecedent)
+                formulas.put(current_formula.consequent)
+            elif isinstance(current_formula, Quantifier):
+                formulas.put(current_formula.clause)
+
+        return count
 
     def variables_from_predicate(self, predicate: Predicate):
         variables = []
@@ -147,6 +172,9 @@ class GPLIFModel:
             filter(lambda _: isinstance(_, Function), predicate.terms)
         )
         for outer_function in outer_functions:
+            if all(isinstance(_, Name) for _ in outer_function.terms):
+                break
+
             if any(isinstance(_, Variable) for _ in outer_function.terms):
                 variables.extend(
                     list(
@@ -154,12 +182,16 @@ class GPLIFModel:
                     )
                 )
 
+            if all(not isinstance(_, Function) for _ in outer_function.terms):
+                break
+
             if any(isinstance(_, Function) for _ in outer_function.terms):
                 inner_functions = set(
                     filter(lambda _: isinstance(_, Function), outer_function.terms)
                 )
                 for inner_function in inner_functions:
-                    variables.extend(self.variables_from_function(inner_function))
+                    inner_variables = self.variables_from_function(inner_function)
+                    variables.extend(inner_variables)
 
         ordered_variables = list(dict.fromkeys(variables))
         return ordered_variables
@@ -170,22 +202,27 @@ class GPLIFModel:
             list(filter(lambda _: isinstance(_, Variable), function.terms))
         )
         outer_functions = set(filter(lambda _: isinstance(_, Function), function.terms))
-        while len(outer_functions):
-            for outer_function in outer_functions:
-                if any(isinstance(_, Variable) for _ in outer_function.terms):
-                    variables.extend(
-                        list(
-                            filter(
-                                lambda _: isinstance(_, Variable), outer_function.terms
-                            )
-                        )
-                    )
-                    outer_functions = outer_functions.difference({outer_function})
+        if not outer_functions:
+            ordered_variables = list(dict.fromkeys(variables))
+            return ordered_variables
 
-                if any(isinstance(_, Function) for _ in outer_function.terms):
-                    outer_functions = set(
-                        filter(lambda _: isinstance(_, Function), outer_function.terms)
-                    )
+        function_stack = LifoQueue()
+        for f in outer_functions:
+            function_stack.put(f)
+
+        while not function_stack.empty():
+
+            inner_term = function_stack.get()
+
+            # Update Functions
+            if isinstance(inner_term, Function):
+                for t in inner_term.terms:
+                    if isinstance(t, Function):
+                        function_stack.put(t)
+
+                    if isinstance(t, Variable):
+                        variables.append(t)
+
         ordered_variables = list(dict.fromkeys(variables))
         return ordered_variables
 

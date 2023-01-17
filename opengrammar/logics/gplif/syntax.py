@@ -122,6 +122,7 @@ class Predicate:
 
         # Meta Theoretic
         self.arity = len(self.terms)
+        self.parenthesized = False
 
     def __repr__(self):
         return f"{self.symbol}({', '.join([repr(t) for t in self.terms])})"

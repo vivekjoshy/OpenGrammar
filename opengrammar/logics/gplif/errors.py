@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Union
+from typing import List, Union
 
 from lark import UnexpectedInput
 
@@ -11,64 +11,77 @@ class UnboundVariableError(UnexpectedInput):
         self.formula = formula
         self.variables = variables
         self.ordered_variables = self.variables
+        self.column_start = (
+            min(self.ordered_variables, key=lambda _: int(_.token.column)).token.column
+            - 1
+        )
         self.formula_length = len(self.formula)
-        self.column_start = self.ordered_variables[0].token.column - 1
-        self.column_end = self.ordered_variables[-1].token.end_column - 1
-        self.error_length = abs(self.column_start - self.column_end)
-        self.spaces = " " * self.column_start
-        self.indicator = "^" * self.error_length
+        self.error_positions = str(" " * len(formula))
+        self.indicator = "^"
+
+        for variable in self.variables:
+            self.error_positions = (
+                self.error_positions[: variable.token.column - 1]
+                + self.indicator
+                + self.error_positions[variable.token.column :]
+            )
 
         self.message = _(
-            "Variables {variables} at column {column_start} "
+            "Variables {variables} starting at column {column_start} "
             "are not bound by any scope.\n\n"
             "{formula}\n"
-            "{spaces}{indicator}"
+            "{error_positions}"
         ).format(
             variables=self.variables,
             column_start=self.column_start + 1,
             formula=self.formula,
-            spaces=self.spaces,
-            indicator=self.indicator,
+            error_positions=self.error_positions,
         )
         super().__init__(self.message)
 
 
 class MultipleDispatchError(UnexpectedInput):
-    def __init__(self, formula: str, symbol: Union[Function, Predicate]):
+    def __init__(self, formula: str, relations: Union[List[Predicate], List[Function]]):
         self.formula = formula
-        self.symbol = symbol
+        self.relations = relations
         self.formula_length = len(self.formula)
-        self.column_start = self.symbol.token.column - 1
-        self.column_end = self.symbol.token.end_column - 1
-        self.error_length = abs(self.column_start - self.column_end)
-        self.spaces = " " * self.column_start
-        self.indicator = "^" * self.error_length
+        self.column_start = (
+            min(self.relations, key=lambda _: int(_.token.column)).token.column - 1
+        )
+        self.formula_length = len(self.formula)
+        self.error_positions = " " * self.formula_length
+        self.indicator = "^"
 
-        if isinstance(self.symbol, Function):
+        for relation in self.relations:
+            self.error_positions = (
+                self.error_positions[: relation.token.column - 1]
+                + self.indicator
+                + self.error_positions[relation.token.column :]
+            )
+
+        if isinstance(self.relations[0], Function):
             self.message = _(
-                "Function {function} at column {column_start} "
+                "Function {function} starting at column {column_start} "
                 "is defined multiple times with mismatched arity.\n\n"
                 "{formula}\n"
-                "{spaces}{indicator}"
+                "{error_positions}"
             ).format(
-                function=self.symbol.symbol,
+                function=self.relations[0].symbol,
                 column_start=self.column_start + 1,
                 formula=self.formula,
-                spaces=self.spaces,
-                indicator=self.indicator,
+                error_positions=self.error_positions,
             )
         else:
             self.message = _(
                 "Predicate {predicate} at column {column_start} "
                 "is defined multiple times with mismatched arity.\n\n"
                 "{formula}\n"
-                "{spaces}{indicator}"
+                "{error_positions}"
             ).format(
-                predicate=self.symbol.symbol,
+                predicate=self.relations[0].symbol,
                 column_start=self.column_start + 1,
                 formula=self.formula,
-                spaces=self.spaces,
-                indicator=self.indicator,
+                error_positions=self.error_positions,
             )
 
         super().__init__(self.message)

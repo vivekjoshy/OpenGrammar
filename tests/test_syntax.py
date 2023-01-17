@@ -4,9 +4,16 @@ from lark import Token
 from opengrammar.logics.gplif import (
     Function,
     GPLIFFormulaParser,
+    MissingComma,
+    MissingFunction,
+    MissingLeftParenthesis,
+    MissingRightParenthesis,
+    MissingScopedFormula,
+    MissingValidOperator,
     MultipleDispatchError,
     UnboundVariableError,
 )
+from opengrammar.logics.gplif.errors import GPLIFSyntaxError
 from opengrammar.logics.gplif.syntax import Name, Predicate
 
 
@@ -100,3 +107,57 @@ def test_multiple_dispatch_error():
     for formula in input_formulas:
         with pytest.raises(MultipleDispatchError):
             parser = GPLIFFormulaParser(formula=formula)
+
+
+def test_not_wff():
+
+    # Malformed Formulas
+    missing_right_parenthesis = [r"P(a, b, c, d, e, f, g", r"∀y(P(a)"]
+
+    for formula in missing_right_parenthesis:
+        with pytest.raises(MissingRightParenthesis):
+            parser = GPLIFFormulaParser(formula=formula)
+
+    missing_left_parenthesis = [r"Pa, b)", r"Pa, b, c, d)"]
+
+    for formula in missing_left_parenthesis:
+        with pytest.raises(MissingLeftParenthesis):
+            parser = GPLIFFormulaParser(formula=formula)
+
+    missing_comma = [r"P(a b c)", r"P(a, b, c d)"]
+
+    for formula in missing_comma:
+        with pytest.raises(MissingComma):
+            parser = GPLIFFormulaParser(formula=formula)
+
+    missing_valid_operator = [
+        r"P (a, b, c, d, e)",
+        r"P   (a, b, c)",
+        r"P     (a)",
+        r"∃x∀y(P(a, b) ∀z(V(z))",
+        r"P(a) ∧ Q(b) ∧ ~R(c)",
+    ]
+
+    for formula in missing_valid_operator:
+        with pytest.raises(MissingValidOperator):
+            parser = GPLIFFormulaParser(formula=formula)
+
+    missing_scoped_formula = [r"∃x∀y()", r"∀y()"]
+
+    for formula in missing_scoped_formula:
+        with pytest.raises(MissingScopedFormula):
+            parser = GPLIFFormulaParser(formula=formula)
+
+    missing_function = [r"f(a) = Q(b)"]
+
+    for formula in missing_function:
+        with pytest.raises(MissingFunction):
+            parser = GPLIFFormulaParser(formula=formula)
+
+
+def test_misc():
+    error = GPLIFSyntaxError(*("P(a", 1, 4))
+    error.label = "Misc Error"
+
+    error_string = "Misc Error at column 4.\n\nP(a"
+    assert error_string == str(error)

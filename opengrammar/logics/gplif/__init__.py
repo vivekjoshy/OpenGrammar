@@ -4,9 +4,18 @@ from collections import defaultdict
 from queue import LifoQueue, Queue
 from typing import Dict, List, Set, Union
 
-from lark import Lark
+from lark import Lark, UnexpectedInput
 
-from opengrammar.logics.gplif.errors import MultipleDispatchError, UnboundVariableError
+from opengrammar.logics.gplif.errors import (
+    MissingComma,
+    MissingFunction,
+    MissingLeftParenthesis,
+    MissingRightParenthesis,
+    MissingScopedFormula,
+    MissingValidOperator,
+    MultipleDispatchError,
+    UnboundVariableError,
+)
 from opengrammar.logics.gplif.syntax import (
     BinaryConnective,
     Function,
@@ -19,12 +28,15 @@ from opengrammar.logics.gplif.syntax import (
 from opengrammar.logics.gplif.transformer import GPLIFTransformer
 
 script_directory = os.path.dirname(__file__)
+
+# Load Formula Grammar
 with open(
     os.path.join(script_directory, "grammars/formula.lark"), encoding="utf-8"
 ) as fp:
     formula_grammar = "".join(fp.readlines())
 
-parser = Lark(grammar=formula_grammar, start="wff", ambiguity="explicit")
+# Initialize Lark
+formula_parser = Lark(grammar=formula_grammar, start="wff", ambiguity="explicit")
 
 
 class GPLIFFormulaParser:
@@ -33,7 +45,34 @@ class GPLIFFormulaParser:
         self.formula = formula
 
         # Lark Specific
-        self.parse_tree = parser.parse(self.formula)
+        try:
+            self.parse_tree = formula_parser.parse(self.formula)
+        except UnexpectedInput as u:
+            exc_class = u.match_examples(
+                formula_parser.parse,
+                {
+                    MissingRightParenthesis: [
+                        r"P(a",
+                        r"P(a, b",
+                        r"P(a, b, c",
+                        r"∀x(P(a)",
+                    ],
+                    MissingLeftParenthesis: [r"Pa)", r"Pa, b)"],
+                    MissingComma: [r"P(a b)", r"P(a, b c)"],
+                    MissingValidOperator: [
+                        r"P (a, b)",
+                        r"P   (a)",
+                        r"P     (a, b, c)",
+                        r"∃x∀y(P(a, b)  ∀z(V(z))",
+                        r"P(a) ∧ ~Q(b)",
+                    ],
+                    MissingScopedFormula: [r"∀x∃y()"],
+                    MissingFunction: [r"f(a) = P(a)"],
+                },
+                use_accepts=True,
+            )
+            raise exc_class(u.get_context(self.formula), u.line, u.column)
+
         self.transformer = GPLIFTransformer(self.formula)
 
         # Syntax Tree

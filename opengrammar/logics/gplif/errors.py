@@ -85,3 +85,33 @@ class MultipleDispatchError(UnexpectedInput):
             )
 
         super().__init__(self.message)
+
+
+class GPLIFSyntaxError(SyntaxError):
+    def __str__(self):
+        context, line, column = self.args
+        return f"{self.label} at column {column}.\n\n{context}"
+
+
+class MissingComma(SyntaxError):
+    label = "Missing Comma"
+
+
+class MissingRightParenthesis(GPLIFSyntaxError):
+    label = "Missing Right Parenthesis"
+
+
+class MissingLeftParenthesis(GPLIFSyntaxError):
+    label = "Missing Left Parenthesis"
+
+
+class MissingValidOperator(GPLIFSyntaxError):
+    label = "Missing Valid Operator"
+
+
+class MissingScopedFormula(GPLIFSyntaxError):
+    label = "Missing Formula for Quantifier"
+
+
+class MissingFunction(GPLIFSyntaxError):
+    label = "Missing Function"

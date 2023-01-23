@@ -1,4 +1,5 @@
-from typing import List, Optional, Union
+from queue import LifoQueue
+from typing import List, Optional, Set, Union
 
 from lark import Token
 
@@ -61,7 +62,12 @@ class Term:
 
 
 class Function(Term):
-    def __init__(self, symbol: str, *terms: List["Term"], token: Token):
+    def __init__(
+        self,
+        symbol: str,
+        *terms: List[Union["Name", "Variable", "Function"]],
+        token: Token,
+    ):
         self.symbol = symbol
         self.terms = list(terms)
         self.token = token
@@ -83,6 +89,47 @@ class Function(Term):
 
     def __hash__(self):
         return hash((self.symbol, self.arity))
+
+    def _extract_items(
+        self, type: Union["Name.__class__", "Variable.__class__", "Function.__class__"]
+    ):
+        function_items = dict.fromkeys(
+            filter(lambda _: isinstance(_, type), self.terms)
+        )
+        outer_functions = set(filter(lambda _: isinstance(_, Function), self.terms))
+        if not outer_functions:
+            ordered_names = list(dict.fromkeys(function_items))
+            return ordered_names
+
+        function_stack = LifoQueue()
+        for f in outer_functions:
+            function_stack.put(f)
+
+        while not function_stack.empty():
+
+            inner_term = function_stack.get()
+
+            # Update Functions
+            if isinstance(inner_term, Function):
+                for t in inner_term.terms:
+                    if isinstance(t, Function):
+                        function_stack.put(t)
+                    elif isinstance(t, type):
+                        function_items[t] = None
+        ordered_names = set(function_items.keys())
+        return ordered_names
+
+    @property
+    def names(self):
+        return self._extract_items(type=Name)
+
+    @property
+    def variables(self):
+        return self._extract_items(type=Variable)
+
+    @property
+    def functions(self):
+        return self._extract_items(type=Function)
 
 
 class Name(Term):
@@ -115,7 +162,12 @@ class Variable(Term):
 
 
 class Predicate:
-    def __init__(self, symbol, *terms: List[Term], token: Optional[Token] = None):
+    def __init__(
+        self,
+        symbol,
+        *terms: List[Union[Name, Variable, Function]],
+        token: Optional[Token] = None,
+    ):
         self.symbol = symbol
         self.terms = list(terms)
         self.token = token
@@ -137,7 +189,38 @@ class Predicate:
         return False
 
     def __hash__(self):
-        return hash((self.symbol, self.arity))
+        return hash(self.symbol)
+
+    def _extract_items(
+        self, type: Union[Name.__class__, Variable.__class__, Function.__class__]
+    ):
+        predicate_items = dict.fromkeys(
+            filter(lambda _: isinstance(_, type), self.terms)
+        )
+        outer_functions: Set[Function] = set(
+            filter(lambda _: isinstance(_, Function), self.terms)
+        )
+        for outer_function in outer_functions:
+            if type == Name:
+                predicate_items.update(dict.fromkeys(outer_function.names))
+            elif type == Variable:
+                predicate_items.update(dict.fromkeys(outer_function.variables))
+            elif type == Function:
+                predicate_items.update(dict.fromkeys(outer_function.functions))
+        ordered_items = set(predicate_items.keys())
+        return ordered_items
+
+    @property
+    def names(self):
+        return self._extract_items(type=Name)
+
+    @property
+    def variables(self):
+        return self._extract_items(type=Variable)
+
+    @property
+    def functions(self):
+        return self._extract_items(type=Function)
 
 
 class IdentityPredicate(Predicate):

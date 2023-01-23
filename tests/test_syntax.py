@@ -14,7 +14,7 @@ from opengrammar.logics.gplif import (
     UnboundVariableError,
 )
 from opengrammar.logics.gplif.errors import GPLIFSyntaxError
-from opengrammar.logics.gplif.syntax import Name, Predicate
+from opengrammar.logics.gplif.syntax import Name, Predicate, Variable
 
 
 def test_wff():
@@ -155,9 +155,37 @@ def test_not_wff():
             parser = GPLIFFormulaParser(formula=formula)
 
 
+def test_unique_terms():
+    a_name, b_name, c_name = Name(symbol="a"), Name(symbol="b"), Name(symbol="c")
+    x_variable = Variable(symbol="x", token=Token("VARIABLE_NAME", "x"))
+    y_variable = Variable(symbol="y", token=Token("VARIABLE_NAME", "y"))
+    z_variable = Variable(symbol="z", token=Token("VARIABLE_NAME", "z"))
+
+    g_terms = [b_name, y_variable]
+    g_function = Function("g", *g_terms, token=Token("FUNCTION_NAME", "g"))
+    f_terms = [a_name, x_variable, g_function]
+    f_function = Function("f", *f_terms, token=Token("FUNCTION_NAME", "f"))
+    p_terms = [f_function, c_name, z_variable]
+    p_predicate = Predicate("P", *p_terms, token=Token("PREDICATE_NAME", "P"))
+
+    assert f_function.names == {a_name, b_name}
+    assert f_function.variables == {x_variable, y_variable}
+    assert f_function.functions == {g_function}
+    assert p_predicate.names == {a_name, b_name, c_name}
+    assert p_predicate.variables == {x_variable, y_variable, z_variable}
+    assert p_predicate.functions == {f_function, g_function}
+
+
 def test_misc():
     error = GPLIFSyntaxError(*("P(a", 1, 4))
     error.label = "Misc Error"
 
     error_string = "Misc Error at column 4.\n\nP(a"
     assert error_string == str(error)
+
+    a_name, b_name, c_name = Name(symbol="a"), Name(symbol="b"), Name(symbol="c")
+    p_terms = [a_name, b_name, c_name]
+    p_predicate = Predicate("P", *p_terms, token=Token("PREDICATE_NAME", "P"))
+
+    # Test __hash__ of Predicates
+    assert {p_predicate} == {p_predicate}

@@ -1,8 +1,8 @@
 import functools
 import os
 from collections import defaultdict
-from queue import LifoQueue, Queue
-from typing import Dict, List, Set, Union
+from queue import Queue
+from typing import Dict, List
 
 from lark import Lark, UnexpectedInput
 
@@ -101,12 +101,12 @@ class GPLIFFormulaParser:
 
                 # Prevent duplicate relations with different arity
                 predicate_cache.append(current_formula)
-                functions = self.extract_functions(current_formula)
-                for f, c in functions.items():
+                functions = current_formula.functions
+                for f in functions:
                     function_cache.append(f)
 
                 # Check Unbound Variable
-                current_variables = self.variables_from_predicate(current_formula)
+                current_variables = current_formula.variables
                 if scope_cache and current_variables:
                     for variable in current_variables:
                         if scope_cache.get(variable):
@@ -188,7 +188,7 @@ class GPLIFFormulaParser:
                 variables = list(
                     filter(
                         lambda _: _ == scope,
-                        self.variables_from_predicate(current_formula),
+                        current_formula.variables,
                     )
                 )
                 count += len(variables)
@@ -201,92 +201,3 @@ class GPLIFFormulaParser:
                 formulas.put(current_formula.clause)
 
         return count
-
-    def variables_from_predicate(self, predicate: Predicate):
-        variables = []
-        variables.extend(
-            list(filter(lambda _: isinstance(_, Variable), predicate.terms))
-        )
-        outer_functions = set(
-            filter(lambda _: isinstance(_, Function), predicate.terms)
-        )
-        for outer_function in outer_functions:
-            if all(isinstance(_, Name) for _ in outer_function.terms):
-                break
-
-            if any(isinstance(_, Variable) for _ in outer_function.terms):
-                variables.extend(
-                    list(
-                        filter(lambda _: isinstance(_, Variable), outer_function.terms)
-                    )
-                )
-
-            if all(not isinstance(_, Function) for _ in outer_function.terms):
-                break
-
-            if any(isinstance(_, Function) for _ in outer_function.terms):
-                inner_functions = set(
-                    filter(lambda _: isinstance(_, Function), outer_function.terms)
-                )
-                for inner_function in inner_functions:
-                    inner_variables = self.variables_from_function(inner_function)
-                    variables.extend(inner_variables)
-
-        ordered_variables = list(dict.fromkeys(variables))
-        return ordered_variables
-
-    def variables_from_function(self, function: Function):
-        variables = []
-        variables.extend(
-            list(filter(lambda _: isinstance(_, Variable), function.terms))
-        )
-        outer_functions = set(filter(lambda _: isinstance(_, Function), function.terms))
-        if not outer_functions:
-            ordered_variables = list(dict.fromkeys(variables))
-            return ordered_variables
-
-        function_stack = LifoQueue()
-        for f in outer_functions:
-            function_stack.put(f)
-
-        while not function_stack.empty():
-
-            inner_term = function_stack.get()
-
-            # Update Functions
-            if isinstance(inner_term, Function):
-                for t in inner_term.terms:
-                    if isinstance(t, Function):
-                        function_stack.put(t)
-
-                    if isinstance(t, Variable):
-                        variables.append(t)
-
-        ordered_variables = list(dict.fromkeys(variables))
-        return ordered_variables
-
-    def extract_functions(self, relation: Union[Predicate, Function]):
-        outer_functions: Set[Function] = set(
-            filter(lambda _: isinstance(_, Function), relation.terms)
-        )
-        function_count: Dict[Function, int] = dict()
-        while len(outer_functions):
-            for outer_function in outer_functions:
-                if any(isinstance(_, Function) for _ in outer_function.terms):
-
-                    outer_functions = set(
-                        filter(
-                            lambda _: isinstance(_, Function),
-                            outer_function.terms,
-                        )
-                    )
-
-                    function_count[outer_function] = 1 + function_count.get(
-                        outer_function, 0
-                    )
-                else:
-                    function_count[outer_function] = 1 + function_count.get(
-                        outer_function, 0
-                    )
-                    outer_functions = set()
-        return function_count

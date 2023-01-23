@@ -1,21 +1,50 @@
-from opengrammar.mathematics.meta.structures import OrderedSet
+import pytest
+
+from opengrammar.mathematics.meta.structures import Relation
 
 
-def test_ordered_set():
-    assert list(OrderedSet([2, 2, 3, 4, 4, 5])) == [2, 3, 4, 5]
-    assert OrderedSet([1, 2, 2, 3, 4, 4, 5]) == OrderedSet([1, 2, 3, 4, 5])
-    assert OrderedSet([2, 2, 3, 4, 4, 5]) != OrderedSet([1, 2, 3, 3])
-    assert OrderedSet([0, 1, 1, 2, 3, 3, 4, 5, 5])[3] == 3
-    assert len(OrderedSet([0, 1, 1, 2, 3, 3, 4, 5, 5])) == 6
+def test_relation():
+    r = Relation([(1, 2), (1, 3), (1, 2), (1, 2), (1, 1)])
+    assert list(r) == [(1, 2), (1, 3), (1, 1)]
 
-    ordered_set = iter(OrderedSet([1, 2, 3]))
-    assert ordered_set.__next__() == 1
-    assert ordered_set.__next__() == 2
-    assert ordered_set.__next__() == 3
+    r.add((2, 1))
+    assert list(r) == [(1, 2), (1, 3), (1, 1), (2, 1)]
 
-    assert getattr(OrderedSet(), "__contains__").__name__ == "__contains__"
-    assert OrderedSet().__getattr__("__contains__").__name__ == "__contains__"
-    assert repr(OrderedSet([1, 2])) == "OrderedSet{1, 2}"
-    assert OrderedSet._wrap_method(
-        method_name="difference", obj=OrderedSet([1, 2, 3, 4])
-    )(OrderedSet([2, 3, 4])) == OrderedSet([1])
+    r.discard((1, 2))
+    assert list(r) == [(1, 3), (1, 1), (2, 1)]
+    assert repr(r) == "Relation{(1, 3), (1, 1), (2, 1)}"
+    assert str(r) == "{(1, 3), (1, 1), (2, 1)}"
+
+    r.update([(1, 2)])
+    assert list(r) == [(1, 3), (1, 1), (2, 1), (1, 2)]
+
+    s = Relation([(1, 1), (1, 2), (1, 3)])
+    assert s == s
+    assert s != r
+    assert s < r
+    assert not s > r
+    assert s <= r
+    assert not s >= r
+
+    with pytest.raises(TypeError):
+        Relation([(1, 1), (1, 2), (1, 2, 3)])
+
+    with pytest.raises(TypeError):
+        Relation([(1, 1), (1, 2), [1, 2]])
+
+    with pytest.raises(TypeError):
+        Relation([(1, 1), (1, 2), 1])
+
+    with pytest.raises(TypeError):
+        r.update(a=(1, 2))
+
+    with pytest.raises(TypeError):
+        r.add((1, 2, 3))
+
+    with pytest.raises(TypeError):
+        r.add(tuple())
+
+    r = Relation()
+    r.add((1, 1, 1))
+    r.add((1, 1, 2))
+    assert str(r) == "{(1, 1, 1), (1, 1, 2)}"

@@ -8,6 +8,7 @@ from lark import Lark, UnexpectedInput
 
 from opengrammar.logics.gplif.errors import (
     MissingComma,
+    MissingFormula,
     MissingFunction,
     MissingLeftParenthesis,
     MissingRightParenthesis,
@@ -68,6 +69,7 @@ class GPLIFFormulaParser:
                     ],
                     MissingScopedFormula: [r"∀x∃y()"],
                     MissingFunction: [r"f(a) = P(a)"],
+                    MissingFormula: ["()"],
                 },
                 use_accepts=True,
             )

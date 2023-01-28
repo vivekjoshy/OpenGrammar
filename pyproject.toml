@@ -1,9 +1,9 @@
 [tool.towncrier]
-package = "opengrammar"
-package_dir = "opengrammar"
+package = "opendebates"
+package_dir = "opendebates"
 directory = "changes"
 filename = "CHANGELOG.rst"
-issue_format = "`#{issue} <https://github.com/OpenDebates/OpenGrammar/issues/{issue}>`_"
+issue_format = "`#{issue} <https://github.com/OpenDebates/OpenDebates/issues/{issue}>`_"
 type = [
     { name = "Breaking Changes",            directory = "breaking",     showcontent = true },
     { name = "Deprecation",                 directory = "deprecation",  showcontent = true },
@@ -14,7 +14,7 @@ type = [
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra --strict-markers --ignore=docs/conf.py --ignore=setup.py --ignore=benchmark --ignore=ci --ignore=.eggs --doctest-modules --doctest-glob=/*.rst --tb=short"
+addopts = "-ra --strict-markers --ignore=docs/conf.py --ignore=setup.py --ignore=.eggs --doctest-modules --doctest-glob=/*.rst --tb=short"
 norecursedirs = [
 	".git",
 	".tox",
@@ -32,6 +32,62 @@ python_files = [
 	"tests.py"
 ]
 
+[tool.poetry]
+name = "OpenDebates"
+version = "0.1.0"
+description = "Open Source Semantic Wiki and Debate Platform"
+authors = ["Taven <taven@opendebates.net>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/OpenDebates/OpenDebates"
+repository = "https://github.com/OpenDebates/OpenDebates"
+documentation = "https://opendebates.readthedocs.io"
+keywords = [
+    "debate",
+    "wiki",
+    "semantic",
+    "linguistics"
+]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+]
+packages = [
+    { include = "opengrammar" }
+]
+include = [
+    ".bumpversion.cfg",
+    ".coveragerc",
+    ".editorconfig",
+    ".readthedocs.yml",
+    "AUTHORS.rst",
+    "tests/*",
+    "poetry.lock",
+    "pyproject.toml"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+lark = "^1.1.5"
+
+
+[tool.poetry.group.tests.dependencies]
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+
+[tool.poetry.group.release.dependencies]
+isort = "^5.10.1"
+twine = "^4.0.1"
+codecov = "^2.1.12"
+bump2version = "^1.0.1"
+black = { extras = ["d"], version = "^22.12.0" }
+towncrier = "^22.8.0"
+build = "^0.9.0"
+
 [build-system]
-requires = ["wheel", "setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

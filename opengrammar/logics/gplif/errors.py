@@ -87,13 +87,13 @@ class MultipleDispatchError(UnexpectedInput):
         super().__init__(self.message)
 
 
-class GPLIFSyntaxError(SyntaxError):
+class GPLIFSyntaxError(Exception):
     def __str__(self):
         context, line, column = self.args
         return f"{self.label} at column {column}.\n\n{context}"
 
 
-class MissingComma(SyntaxError):
+class MissingComma(GPLIFSyntaxError):
     label = "Missing Comma"
 
 
@@ -115,3 +115,11 @@ class MissingScopedFormula(GPLIFSyntaxError):
 
 class MissingFunction(GPLIFSyntaxError):
     label = "Missing Function"
+
+
+class MissingFormula(GPLIFSyntaxError):
+    label = "Missing Formula"
+
+
+class TranslationError(Exception):
+    pass

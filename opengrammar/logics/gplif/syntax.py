@@ -1,9 +1,8 @@
+import uuid
 from queue import LifoQueue
 from typing import List, Optional, Set, Union
 
 from lark import Token
-
-from opengrammar import _
 
 
 class Operator:
@@ -28,6 +27,9 @@ class Quantifier(Operator):
         # Meta Theoretic
         self.parenthesized = False
 
+        # Storage Data
+        self.id = uuid.uuid4()
+
 
 class UnaryConnective(Connective):
     def __init__(
@@ -38,6 +40,9 @@ class UnaryConnective(Connective):
 
         # Meta Theoretic
         self.parenthesized = False
+
+        # Storage Data
+        self.id = uuid.uuid4()
 
 
 class BinaryConnective(Connective):
@@ -55,6 +60,9 @@ class BinaryConnective(Connective):
 
         # Meta Theoretic
         self.parenthesized = True
+
+        # Storage Data
+        self.id = uuid.uuid4()
 
 
 class Term:
@@ -75,11 +83,11 @@ class Function(Term):
         # Meta Theoretic
         self.arity = len(self.terms)
 
+        # Storage Data
+        self.id = uuid.uuid4()
+
     def __repr__(self):
         return f"{self.symbol}({', '.join([repr(t) for t in self.terms])})"
-
-    def __str__(self):
-        return _("")
 
     def __eq__(self, other: "Function"):
         if self.symbol == other.symbol:
@@ -136,17 +144,20 @@ class Name(Term):
     def __init__(self, symbol: str):
         self.symbol = symbol
 
+        # Storage Data
+        self.id = uuid.uuid4()
+
     def __repr__(self):
         return f"{self.symbol}"
-
-    def __str__(self):
-        return _("")
 
 
 class Variable(Term):
     def __init__(self, symbol: str, token: Token):
         self.symbol = symbol
         self.token = token
+
+        # Storage Data
+        self.id = uuid.uuid4()
 
     def __eq__(self, other: "Variable"):
         return other.symbol == self.symbol
@@ -156,9 +167,6 @@ class Variable(Term):
 
     def __repr__(self):
         return f"{self.symbol}"
-
-    def __str__(self):
-        return _("")
 
 
 class Predicate:
@@ -176,11 +184,11 @@ class Predicate:
         self.arity = len(self.terms)
         self.parenthesized = False
 
+        # Storage Data
+        self.id = uuid.uuid4()
+
     def __repr__(self):
         return f"{self.symbol}({', '.join([repr(t) for t in self.terms])})"
-
-    def __str__(self):
-        return _("")
 
     def __eq__(self, other: "Predicate"):
         if self.symbol == other.symbol:
@@ -233,9 +241,6 @@ class IdentityPredicate(Predicate):
     def __repr__(self):
         return " = ".join([repr(t) for t in self.terms])
 
-    def __str__(self):
-        return _("")
-
 
 class ExistentialQuantifier(Quantifier):
     def __repr__(self):
@@ -244,9 +249,6 @@ class ExistentialQuantifier(Quantifier):
                 return f"∃{repr(self.variable)}{repr(self.clause)}"
             else:
                 return f"∃{repr(self.variable)}({repr(self.clause)})"
-
-    def __str__(self):
-        return _("")
 
 
 class UniversalQuantifier(Quantifier):
@@ -257,45 +259,27 @@ class UniversalQuantifier(Quantifier):
             else:
                 return f"∀{repr(self.variable)}({repr(self.clause)})"
 
-    def __str__(self):
-        return _("")
-
 
 class Negation(UnaryConnective):
     def __repr__(self):
         return f"¬{repr(self.clause)}"
-
-    def __str__(self):
-        return _("")
 
 
 class Conjunction(BinaryConnective):
     def __repr__(self):
         return f"({repr(self.antecedent)} ∧ {repr(self.consequent)})"
 
-    def __str__(self):
-        return _("")
-
 
 class Disjunction(BinaryConnective):
     def __repr__(self):
         return f"({repr(self.antecedent)} ∨ {repr(self.consequent)})"
-
-    def __str__(self):
-        return _("")
 
 
 class Conditional(BinaryConnective):
     def __repr__(self):
         return f"({repr(self.antecedent)} → {repr(self.consequent)})"
 
-    def __str__(self):
-        return _("")
-
 
 class BiConditional(BinaryConnective):
     def __repr__(self):
         return f"({repr(self.antecedent)} ↔ {repr(self.consequent)})"
-
-    def __str__(self):
-        return _("")

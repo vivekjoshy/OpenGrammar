@@ -1,5 +1,5 @@
 from queue import Queue
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, TypeVar, Union
 
 from opengrammar.logics.gplif import (
     BinaryConnective,
@@ -10,10 +10,13 @@ from opengrammar.logics.gplif import (
     Quantifier,
     UnaryConnective,
 )
+from opengrammar.logics.gplif.errors import TranslationError
 from opengrammar.mathematics.meta.structures import Relation
 
+T = TypeVar("T")
 
-class GPLIFDomain:
+
+class GPLIFDomain(dict[T]):
     def __init__(self, *args, **kwargs):
         self.glossary: Dict[Name, str] = dict()
         self.domain: Dict[
@@ -26,53 +29,59 @@ class GPLIFDomain:
 
     def __setitem__(self, key, value):
         self.domain[key] = value
+        self.glossary[key] = ""
 
 
-class GPLIFExtensions(dict):
+class GPLIFExtensions(dict[T]):
     def __init__(self, *args, **kwargs):
         self.glossary: Dict[Predicate, str] = dict()
         self.extensions: Dict[Tuple[str, int], Relation] = dict()
         super().__init__(*args, **kwargs)
 
-    def __getitem__(self, item):
-        return self.extensions[item]
+    def __getitem__(self, item: Predicate):
+        return self.extensions[(item.symbol, item.arity)]
 
-    def __setitem__(self, key, value):
-        self.extensions[key] = value
+    def __setitem__(self, key: Predicate, value: Relation):
+        self.extensions[(key.symbol, key.arity)] = value
+        self.glossary[key] = ""
 
 
-class GPLIFRelations(dict):
+class GPLIFRelations(dict[T]):
     def __init__(self, *args, **kwargs):
         self.glossary: Dict[Function, str] = dict()
-        self.relations: Dict[Function, Relation] = dict()
+        self.relations: Dict[Tuple[str, int], Relation] = dict()
         super().__init__(*args, **kwargs)
 
-    def __getitem__(self, item):
-        return self.relations[item]
+    def __getitem__(self, item: Predicate):
+        return self.relations[(item.symbol, item.arity)]
 
-    def __setitem__(self, key, value):
-        self.relations[key] = value
+    def __setitem__(self, key: Function, value: Relation):
+        self.relations[(key.symbol, key.arity)] = value
+        self.glossary[key] = ""
 
 
 class GPLIFModel:
     def __init__(self, argument: List[GPLIFFormulaParser]):
         self.argument = argument
 
-        # Model Theoretic
+        # Model Theoretic Entries
         self.domain = GPLIFDomain()
         self.extensions = GPLIFExtensions()
-        self.relations: Dict[Function, Relation] = dict()
+        self.relations = GPLIFRelations()
 
-        # Translation Cache
-        self.untranslated_domain = set()
-        self.untranslated_extensions = set()
-        self.untranslated_relations = set()
+        # Populate Entries
+        self._traverse_syntax_tree()
 
     def translate(self):
-        pass
+        # Verify Complete Entries
+        if any(map(lambda _: _[1].strip() == "", self.domain.glossary.items())):
+            raise TranslationError("Incomplete Glossary for Domain")
 
-    def _prepare(self):
-        pass
+        if any(map(lambda _: _[1].strip() == "", self.extensions.glossary.items())):
+            raise TranslationError("Incomplete Glossary for Domain")
+
+        if any(map(lambda _: _[1].strip() == "", self.relations.items())):
+            raise TranslationError("Incomplete Glossary for Domain")
 
     def _traverse_syntax_tree(self):
         formulas = Queue()
@@ -87,7 +96,11 @@ class GPLIFModel:
 
             # Check Type of Formula
             if isinstance(current_formula, Predicate):
-                pass
+                for name in current_formula.names:
+                    self.domain[name] = None
+
+                self.extensions[current_formula] = Relation()
+
             elif isinstance(current_formula, UnaryConnective):
                 formulas.put(current_formula.clause)
             elif isinstance(current_formula, BinaryConnective):

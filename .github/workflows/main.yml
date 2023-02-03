@@ -32,7 +32,7 @@ jobs:
               poetry install --with tests,release
               poetry run python -m build
               poetry run twine check dist/*
-              poetry run pytest . --cov --cov-report=term-missing -vv --doctest-glob="*.py"
+              poetry run pytest opengrammar tests --cov --cov-report=term-missing -vv --doctest-glob="*.py"
               poetry run coverage report
               poetry run coverage html
               poetry run coverage xml --ignore-errors

@@ -90,7 +90,6 @@ class GPLIFModel:
 
         # Top-Down Traversal
         while not formulas.empty():
-
             # Get Latest Formula
             current_formula = formulas.get()
 

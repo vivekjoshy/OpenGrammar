@@ -114,7 +114,6 @@ class Function(Term):
             function_stack.put(f)
 
         while not function_stack.empty():
-
             inner_term = function_stack.get()
 
             # Update Functions

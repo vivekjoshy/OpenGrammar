@@ -94,13 +94,11 @@ class GPLIFFormulaParser:
 
         # Top-Down Traversal
         while not formulas.empty():
-
             # Get Latest Formula
             current_formula = formulas.get()
 
             # Check Type of Formula
             if isinstance(current_formula, Predicate):
-
                 # Prevent duplicate relations with different arity
                 predicate_cache.append(current_formula)
                 functions = current_formula.functions
@@ -182,7 +180,6 @@ class GPLIFFormulaParser:
 
         # Top-Down Traversal
         while not formulas.empty():
-
             # Get Latest Formula
             current_formula = formulas.get()
 

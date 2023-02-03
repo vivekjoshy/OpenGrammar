@@ -18,7 +18,6 @@ from opengrammar.logics.gplif.syntax import Name, Predicate, Variable
 
 
 def test_wff():
-
     # Well Formed Formulas
     input_formulas = [
         r"f(a, h(k(l(b)))) = g(c, j(d))",
@@ -81,7 +80,6 @@ def test_equality():
 
 
 def test_unbound_variables():
-
     # Unbound Variables Errors
     input_formulas = [
         r"∀x(P(a) ∧ ∀y(Q(f(b, g(h(y), j(k(z)))))))",
@@ -110,7 +108,6 @@ def test_multiple_dispatch_error():
 
 
 def test_not_wff():
-
     # Malformed Formulas
     missing_right_parenthesis = [r"P(a, b, c, d, e, f, g", r"∀y(P(a)"]
 

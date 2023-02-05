@@ -40,7 +40,7 @@ authors = [
 maintainers = [
   {name = "Taven", email = "taven@opendebates.net"}
 ]
-description = "Open Source Inference Engine"
+description = "Natural Language Inference Engine"
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = ["semantics", "theorem prover", "logic", "inference", "syntax"]

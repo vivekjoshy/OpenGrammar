@@ -61,7 +61,7 @@ dynamic = ["version"]
 
 
 [project.optional-dependencies]
-test = [
+tests = [
     "pytest>=7.2.1",
     "pytest-cov>=4.0.0"
 ]

@@ -1,7 +1,7 @@
 <p align="center" style="text-align: center">
   <img src="https://i.imgur.com/IYvSZam.gif"
        width="100%"
-       alt="Logo of OpenSkill for Python - Multiplayer rating system. Better than Elo."/>
+       alt="Logo of Open Grammar for Python - Natural Language Inference Engine."/>
 </p>
 
 <p align="center" style="text-align: center">
@@ -53,3 +53,13 @@ Open Grammar is a set of research tools used to convert formal logic systems int
 ```shell
 pip install opengrammar
 ```
+
+## Models Supported
+
+### Formal Languages
+
+- GPLIF: General Predicate Logic with Identity and Function Terms
+
+### Natural Language
+
+- English: [WIP]

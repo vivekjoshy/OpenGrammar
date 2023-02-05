@@ -15,13 +15,11 @@ jobs:
         shell: bash
     steps:
         - uses: actions/checkout@v3
-        - name: Install Poetry
-          run: pipx install poetry
         - name: Set up Python ${{ matrix.python-version }}
           uses: actions/setup-python@v4
           with:
             python-version: ${{ matrix.python-version }}
-            cache: 'poetry'
+            cache: 'pip'
         - name: Set ENV
           run: |
               echo "MKL_CBWR=AUTO" >> $GITHUB_ENV
@@ -29,14 +27,13 @@ jobs:
         - name: Run Tests
           run: |
               python -m pip install --upgrade pip
-              poetry config virtualenvs.in-project true
-              poetry install --with tests,release
-              poetry run python -m build
-              poetry run twine check dist/*
-              poetry run pytest opengrammar tests --cov --cov-report=term-missing -vv --doctest-glob="*.py"
-              poetry run coverage report
-              poetry run coverage html
-              poetry run coverage xml --ignore-errors
+              pip install -e .[tests,release]
+              python -m build
+              twine check dist/*
+              pytest . --cov --cov-report=term-missing -vv --doctest-glob="*.py"
+              coverage report
+              coverage html
+              coverage xml --ignore-errors
           continue-on-error: ${{ matrix.experimental }}
         - name: "Upload coverage to Codecov"
           uses: codecov/codecov-action@v3

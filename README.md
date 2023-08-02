@@ -1,11 +1,11 @@
 <p align="center" style="text-align: center">
   <img src="https://i.imgur.com/IYvSZam.gif"
        width="100%"
-       alt="Logo of Open Grammar for Python - Natural Language Inference Engine."/>
+       alt="Logo of Open Grammar for Python - Natural Language Inference Engine and Universal Parser."/>
 </p>
 
 <p align="center" style="text-align: center">
-    Natural Language Inference Engine
+    Natural Language Inference Engine and Universal Parser
 </p>
 
 <p align="center" style="text-align: center">
@@ -46,20 +46,11 @@
 ## Description
 
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/opengrammar)
+![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)
 
-Open Grammar is a set of research tools used to convert formal logic systems into natural language models.
+Open Grammar is a research package designed to parse and infer facts in natural language. 
 
 ## Installation
 ```shell
 pip install opengrammar
 ```
-
-## Models Supported
-
-### Formal Languages
-
-- GPLIF: General Predicate Logic with Identity and Function Terms
-
-### Natural Language
-
-- English: [WIP]

@@ -1,0 +1,17 @@
+[paths]
+source = opengrammar
+
+[run]
+branch = true
+source =
+    opengrammar
+parallel = true
+
+[report]
+show_missing = true
+precision = 2
+omit = *migrations*
+exclude_lines =
+    pragma: no cover
+    __rich__
+    __repr__

@@ -1,0 +1,14 @@
+lines: (rule NEWLINE*)+
+rule: lhs rhs
+lhs: ((terminal | non_terminal) WS)* non_terminal (WS (terminal | non_terminal))* separator
+rhs: ((terminal | non_terminal) WS)* (terminal | non_terminal) (WS (terminal | non_terminal))*
+separator: SEPARATOR
+terminal: TERMINAL
+non_terminal: NON_TERMINAL
+
+SEPARATOR: /:\s+/
+NON_TERMINAL: /([A-Za-z]+_*)+/
+TERMINAL: /\".+?\"/
+
+%import common.WS
+%import common.NEWLINE

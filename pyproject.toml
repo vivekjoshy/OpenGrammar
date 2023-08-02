@@ -1,0 +1,117 @@
+[tool.towncrier]
+package = "OpenGrammar"
+package_dir = "opengrammar"
+directory = "changes"
+filename = "CHANGELOG.rst"
+issue_format = "`#{issue} <https://github.com/OpenDebates/OpenGrammar/issues/{issue}>`_"
+type = [
+    { name = "Breaking Changes",            directory = "breaking",     showcontent = true },
+    { name = "Deprecation",                 directory = "deprecation",  showcontent = true },
+    { name = "Features",                    directory = "feature",      showcontent = true },
+    { name = "Bugfixes",                    directory = "bugfix",       showcontent = true },
+    { name = "Documentation Improvements",  directory = "doc",          showcontent = true },
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra --strict-markers --ignore=docs/conf.py --ignore=setup.py --ignore=.eggs --doctest-modules --doctest-glob=/*.py --tb=short"
+norecursedirs = [
+	".git",
+	".tox",
+	".env",
+	"dist",
+	"build",
+	"migrations"
+]
+testpaths = [
+    "tests"
+]
+python_files = [
+	"test_*.py",
+	"*_test.py",
+	"tests.py"
+]
+
+[project]
+name = "opengrammar"
+version = "0.1.0"
+authors = [
+    {name = "Vivek Joshy", email = "vivek@opendebates.net"},
+]
+maintainers = [
+  {name = "Vivek Joshy", email = "vivek@opendebates.net"}
+]
+description = "Natural Language Inference Engine and Universal Parser"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["parser", "nlp", "grammar"]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 1 - Planning",
+	"Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython"
+]
+dependencies = [
+    "lark~=1.1.7",
+    "rich~=13.4",
+    "typer~=0.9"
+]
+
+[project.urls]
+Documentation = "https://opengrammar.readthedocs.io/en/stable"
+Changelog = "https://github.com/OpenDebates/OpenGrammar/blob/main/CHANGELOG.rst"
+Funding = "https://github.com/sponsors/OpenDebates"
+Source = "https://github.com/OpenDebates/OpenGrammar"
+Tracker = "https://github.com/OpenDebates/OpenGrammar/issues"
+
+
+
+[tool.pdm.dev-dependencies]
+docs = [
+    "sphinx~=7.1",
+    "shibuya~=2023.7",
+    "pygments~=2.15",
+    "myst-parser~=2.0",
+    "sphinx-intl~=2.1",
+    "sphinx-favicon~=1.0",
+    "sphinx-copybutton~=0.5",
+    "sphinx-autoapi~=2.1",
+    "sphinxext-opengraph~=0.8",
+    "sphinxcontrib-bibtex~=2.5",
+    "sphinx-autodoc-typehints~=1.24",
+]
+tests = [
+    "tox~=4.6",
+    "mypy~=1.4.1",
+    "pytest~=7.3",
+    "coverage~=7.2",
+    "pytest-cov~=4.0"
+]
+release = [
+    "twine~=4.0",
+    "build~=0.10",
+    "isort~=5.12",
+    "black~=23.7",
+    "codecov~=2.1",
+    "towncrier~=23.6",
+    "bump2version~=1.0",
+]
+
+[tool.pdm.build]
+includes = ["opengrammar/", "opengrammar/py.typed", "LICENSE", "README.md"]
+is-purelib = true
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.8"
+strict = true
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

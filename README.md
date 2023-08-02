@@ -1,7 +1,9 @@
 <p align="center" style="text-align: center">
-  <img src="https://i.imgur.com/IYvSZam.gif"
-       width="100%"
-       alt="Logo of Open Grammar for Python - Natural Language Inference Engine and Universal Parser."/>
+  <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://i.imgur.com/i2NhVg1.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://i.imgur.com/9GZNe7m.png">
+  <img alt="Natural Language Inference Engine and Universal Parser" src="https://i.imgur.com/Epg03zu.png">
+</picture>
 </p>
 
 <p align="center" style="text-align: center">

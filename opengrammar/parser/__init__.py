@@ -4,6 +4,7 @@ The parser module contains the parser for the Meta Syntax and the Universal Gram
 
 from pathlib import Path
 
+import rich
 from lark import Lark
 
 from opengrammar.parser.meta_syntax import MetaSyntaxAST
@@ -25,7 +26,7 @@ class MetaSyntaxParser:
         Initializes the MetaSyntaxParser.
         """
         self._lark_parser: Lark = Lark(
-            grammar=_meta_syntax, start="lines", parser="lalr"
+            grammar=_meta_syntax, start="syntax", parser="earley", ambiguity="explicit"
         )
 
     def parse(self, text: str) -> MetaSyntaxAST:
@@ -36,6 +37,7 @@ class MetaSyntaxParser:
         :return: A Meta Syntax AST.
         """
         _grammar_tree = self._lark_parser.parse(text)
+        rich.print(_grammar_tree)
         _grammar_transformer = MetaSyntaxTransformer()
         _grammar_ast = _grammar_transformer.transform(_grammar_tree)
         return _grammar_ast
@@ -56,3 +58,11 @@ class UniversalParser:
 
         meta_syntax_parser: MetaSyntaxParser = MetaSyntaxParser()
         self.meta_ast = meta_syntax_parser.parse(text=self.grammar)
+
+
+if __name__ == "__main__":
+    with open("grammar.ug", "r") as f:
+        sample_grammar = f.read()
+
+    up = UniversalParser(grammar=sample_grammar)
+    # rich.print(up.meta_ast)

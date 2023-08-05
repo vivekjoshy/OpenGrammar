@@ -1,7 +1,7 @@
 """
 The meta-syntax parser.
 """
-
+import enum
 from typing import List, Optional, Union
 
 from rich.tree import Tree
@@ -71,6 +71,35 @@ class Terminal:
 
     def __repr__(self) -> str:
         return f"Terminal(symbol={self.symbol}, number={self.number})"
+
+
+class Or:
+    def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
+        self.rules: List[Union[NonTerminal, Terminal]] = rules
+
+    def __rich__(self) -> Tree:
+        tree = Tree("Or")
+        for rule in self.rules:
+            tree.add(rule)
+        return tree
+
+    def __repr__(self):
+        return f"Or(rules={self.rules})"
+
+
+class And:
+
+    def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
+        self.rules: List[Union[NonTerminal, Terminal]] = rules
+
+    def __rich__(self) -> Tree:
+        tree = Tree("And")
+        for rule in self.rules:
+            tree.add(rule)
+        return tree
+
+    def __repr__(self):
+        return f"And(rules={self.rules})"
 
 
 class LHS:

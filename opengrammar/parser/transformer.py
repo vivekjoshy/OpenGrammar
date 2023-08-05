@@ -15,8 +15,7 @@ from opengrammar.parser.meta_syntax import (
     MetaSyntaxAST,
     NonTerminal,
     Rule,
-    Terminal,
-)
+    Terminal, Or, )
 
 
 class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
@@ -45,6 +44,14 @@ class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
         Discards separators.
 
         :param token: A separator token.
+        """
+        return Discard
+
+    def OR_OPERATOR(self, token: Token) -> _DiscardType:
+        """
+        Discards OR tokens.
+
+        :param token: An OR token.
         """
         return Discard
 
@@ -80,7 +87,7 @@ class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
         """
         return children[0]
 
-    def rule(self, children: List[Union[LHS, RHS]]) -> Rule:
+    def rule(self, children: List[Union[LHS, RHS, Or]]) -> Rule:
         """
         Creates a rule from an LHS and RHS.
 

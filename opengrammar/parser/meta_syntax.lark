@@ -6,9 +6,9 @@ lhs_expressions: lhs_disjuncts
 lhs_disjuncts: (lhs_conjuncts WS DISJUNCTION_SYMBOL WS lhs_disjuncts) | lhs_conjuncts
 lhs_conjuncts: (lhs_atoms WS lhs_conjuncts) | lhs_atoms
 lhs_atoms: non_terminal
-| non_terminal (WS terminal)+
-| (terminal WS)+ non_terminal
-| lhs_expressions WS non_terminal WS lhs_expressions
+| (non_terminal (WS terminal)+)
+| ((terminal WS)+ non_terminal)
+| (lhs_expressions WS non_terminal WS lhs_expressions)
 | (LEFT_BRACKET WS? lhs_expressions WS? RIGHT_BRACKET postfix?)
 
 rhs: rhs_expressions

@@ -15,7 +15,9 @@ from opengrammar.parser.meta_syntax import (
     MetaSyntaxAST,
     NonTerminal,
     Rule,
-    Terminal, Or, )
+    Terminal,
+    Or,
+)
 
 
 class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):

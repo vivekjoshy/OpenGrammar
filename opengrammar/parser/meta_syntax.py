@@ -1,7 +1,6 @@
 """
 The meta-syntax parser.
 """
-import enum
 from typing import List, Optional, Union
 
 from rich.tree import Tree
@@ -88,7 +87,6 @@ class Or:
 
 
 class And:
-
     def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
         self.rules: List[Union[NonTerminal, Terminal]] = rules
 

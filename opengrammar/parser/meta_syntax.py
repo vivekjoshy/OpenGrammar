@@ -1,9 +1,20 @@
 """
 The meta-syntax parser.
 """
+from enum import Enum
 from typing import List, Optional, Union
 
 from rich.tree import Tree
+
+
+class PostfixType(Enum):
+    """
+    The kind of postfix operators available.
+    """
+
+    ZERO_OR_MORE = "*"
+    ONE_OR_MORE = "+"
+    OPTIONAL = "?"
 
 
 class NonTerminal:
@@ -11,21 +22,21 @@ class NonTerminal:
     A non-terminal symbol.
     """
 
-    def __init__(self, symbol: str, number: Optional[int] = None) -> None:
+    def __init__(self, symbol: str, postfix: Optional[PostfixType] = None) -> None:
         """
         Initializes the NonTerminal.
 
         :param symbol: The symbol of the non-terminal.
-        :param number: The number of the non-terminal.
+        :param postfix: The postfix operator.
         """
         self.symbol: str = symbol
-        self.number: Optional[int] = number
+        self.postfix: Optional[PostfixType] = postfix
 
     def __rich__(self) -> str:
-        if self.number:
+        if self.postfix:
             string = (
                 f"[bright_green]NonTerminal[/bright_green] "
-                f"[[yellow]{self.number}[/yellow]]: "
+                f"[[yellow]{self.postfix.value}[/yellow]]: "
                 f"[bright_blue]{self.symbol}[/bright_blue]"
             )
         else:
@@ -36,7 +47,7 @@ class NonTerminal:
         return string
 
     def __repr__(self) -> str:
-        return f"NonTerminal(symbol={self.symbol}, number={self.number})"
+        return f"NonTerminal(symbol={self.symbol}, postfix={self.postfix})"
 
 
 class Terminal:
@@ -44,60 +55,107 @@ class Terminal:
     A terminal symbol.
     """
 
-    def __init__(self, symbol: str, number: Optional[int] = None) -> None:
+    def __init__(self, symbol: str) -> None:
         """
         Initializes the Terminal.
 
         :param symbol: The symbol of the terminal.
-        :param number: The number of the terminal.
         """
         self.symbol: str = symbol
-        self.number: Optional[int] = number
 
     def __rich__(self) -> str:
-        if self.number:
-            string = (
-                f"[bright_red]Terminal[/bright_red]    "
-                f"[[yellow]{self.number}[/yellow]]: "
-                f"[bright_blue]{self.symbol}[/bright_blue]"
-            )
-        else:
-            string = (
-                f"[bright_red]Terminal[/bright_red]   : "
-                f"[bright_blue]{self.symbol}[/bright_blue]"
-            )
+        string = (
+            f"[bright_red]Terminal[/bright_red]   : "
+            f"[bright_blue]{self.symbol}[/bright_blue]"
+        )
         return string
 
     def __repr__(self) -> str:
-        return f"Terminal(symbol={self.symbol}, number={self.number})"
+        return f"Terminal(symbol={self.symbol})"
 
 
-class Or:
-    def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
-        self.rules: List[Union[NonTerminal, Terminal]] = rules
+class Disjunction:
+    """
+    A disjunction.
+    """
+
+    def __init__(
+        self,
+        antecedent: "Operands",
+        consequent: "Operands",
+        postfix: Optional[PostfixType] = None,
+    ) -> None:
+        """
+        The disjunction of two operands.
+
+        :param antecedent: An antecedent.
+        :param consequent: A consequent.
+        :param postfix: The postfix operator.
+        """
+        self.antecedent = antecedent
+        self.consequent = consequent
+        self.postfix = postfix
 
     def __rich__(self) -> Tree:
-        tree = Tree("Or")
-        for rule in self.rules:
-            tree.add(rule)
+        if self.postfix:
+            string = f"Or [[yellow]{self.postfix.value}[/yellow]]"
+        else:
+            string = "Or"
+
+        tree = Tree(string)
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
         return tree
 
-    def __repr__(self):
-        return f"Or(rules={self.rules})"
+    def __repr__(self) -> str:
+        return (
+            f"Disjunction("
+            f"antecedent={self.antecedent}, "
+            f"consequent={self.consequent}, "
+            f"postfix={self.postfix})"
+        )
 
 
-class And:
-    def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
-        self.rules: List[Union[NonTerminal, Terminal]] = rules
+class Conjunction:
+    """
+    A conjunction.
+    """
+
+    def __init__(
+        self,
+        antecedent: "Operands",
+        consequent: "Operands",
+        postfix: Optional[PostfixType] = None,
+    ) -> None:
+        """
+        The conjunction of two operands.
+
+        :param antecedent: An antecedent.
+        :param consequent: A consequent.
+        :param postfix: A postfix operator.
+        """
+        self.antecedent = antecedent
+        self.consequent = consequent
+        self.postfix = postfix
 
     def __rich__(self) -> Tree:
-        tree = Tree("And")
-        for rule in self.rules:
-            tree.add(rule)
+        if self.postfix:
+            string = f"And [[yellow]{self.postfix.value}[/yellow]]"
+        else:
+            string = "And"
+
+        tree = Tree(string)
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
         return tree
 
-    def __repr__(self):
-        return f"And(rules={self.rules})"
+    def __repr__(self) -> str:
+        return (
+            f"Conjunction("
+            f"antecedent={self.antecedent}, "
+            f"consequent={self.consequent}, "
+            f"postfix={self.postfix})"
+        )
 
 
 class LHS:
@@ -105,22 +163,21 @@ class LHS:
     The left-hand side of a rule.
     """
 
-    def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
+    def __init__(self, rule: Union[NonTerminal, Conjunction, Disjunction]):
         """
         Initializes the LHS.
 
-        :param rules: A list of terminals and non-terminals.
+        :param rule: A rule.
         """
-        self.rules: List[Union[NonTerminal, Terminal]] = rules
+        self.rule = rule
 
     def __rich__(self) -> Tree:
         tree = Tree("LHS")
-        for rule in self.rules:
-            tree.add(rule)
+        tree.add(self.rule)
         return tree
 
     def __repr__(self) -> str:
-        return f"LHS(rules={self.rules})"
+        return f"LHS(rule={self.rule})"
 
 
 class RHS:
@@ -128,22 +185,21 @@ class RHS:
     The right-hand side of a rule.
     """
 
-    def __init__(self, rules: List[Union[NonTerminal, Terminal]]):
+    def __init__(self, rule: "Operands"):
         """
         Initializes the RHS.
 
-        :param rules: A list of terminals and non-terminals.
+        :param rule: A rule.
         """
-        self.rules: List[Union[NonTerminal, Terminal]] = rules
+        self.rule = rule
 
     def __rich__(self) -> Tree:
         tree = Tree("RHS")
-        for rule in self.rules:
-            tree.add(rule)
+        tree.add(self.rule)
         return tree
 
     def __repr__(self) -> str:
-        return f"RHS(rules={self.rules})"
+        return f"RHS(rule={self.rule})"
 
 
 class Rule:
@@ -176,7 +232,7 @@ class Rule:
         tree.add(self.rhs)
         return tree
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Rule(lhs={self.lhs}, rhs={self.rhs}, number={self.number})"
 
 
@@ -201,3 +257,7 @@ class MetaSyntaxAST:
 
     def __repr__(self) -> str:
         return f"MetaSyntaxAST(rules={self.rules})"
+
+
+Operands = Union[Terminal, NonTerminal, Conjunction, Disjunction]
+PostfixCapable = Union[NonTerminal, Conjunction, Disjunction]

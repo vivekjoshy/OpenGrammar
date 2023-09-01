@@ -1,21 +1,25 @@
-syntax: rule | (rule syntax)
+syntax: (rule)+
 rule: lhs SEPARATOR rhs NEWLINE*
 
 lhs: lhs_expressions
 lhs_expressions: lhs_disjuncts
 lhs_disjuncts: (lhs_conjuncts WS DISJUNCTION_SYMBOL WS lhs_disjuncts) | lhs_conjuncts
-lhs_conjuncts: (lhs_atoms WS lhs_conjuncts) | lhs_atoms
-lhs_atoms: non_terminal
-| (non_terminal (WS terminal)+)
-| ((terminal WS)+ non_terminal)
-| (lhs_expressions WS non_terminal WS lhs_expressions)
-| (LEFT_BRACKET WS? lhs_expressions WS? RIGHT_BRACKET postfix?)
+lhs_conjuncts: non_terminal
+| lhs_left_non_terminal
+| lhs_right_non_terminal
+| lhs_sandwiched
+| lhs_bracketed
+lhs_left_non_terminal: (non_terminal (WS terminal)+)
+lhs_right_non_terminal: ((terminal WS)+ non_terminal)
+lhs_sandwiched: (lhs_expressions WS non_terminal WS lhs_expressions)
+lhs_bracketed: (LEFT_BRACKET WS? lhs_expressions WS? RIGHT_BRACKET)
 
 rhs: rhs_expressions
 rhs_expressions: rhs_disjuncts
 rhs_disjuncts: (rhs_conjuncts WS DISJUNCTION_SYMBOL WS rhs_disjuncts) | rhs_conjuncts
 rhs_conjuncts: (rhs_atoms WS rhs_conjuncts) | rhs_atoms
-rhs_atoms: terminal | non_terminal | (LEFT_BRACKET WS? rhs_expressions WS? RIGHT_BRACKET postfix?)
+rhs_atoms: terminal | non_terminal | rhs_bracketed
+rhs_bracketed: (LEFT_BRACKET WS? rhs_expressions WS? RIGHT_BRACKET postfix?)
 
 terminal: TERMINAL
 non_terminal: NON_TERMINAL postfix?

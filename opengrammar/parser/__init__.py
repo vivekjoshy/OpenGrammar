@@ -37,7 +37,6 @@ class MetaSyntaxParser:
         :return: A Meta Syntax AST.
         """
         _grammar_tree = self._lark_parser.parse(text)
-        rich.print(_grammar_tree)
         _grammar_transformer = MetaSyntaxTransformer()
         _grammar_ast = _grammar_transformer.transform(_grammar_tree)
         return _grammar_ast
@@ -65,4 +64,4 @@ if __name__ == "__main__":
         sample_grammar = f.read()
 
     up = UniversalParser(grammar=sample_grammar)
-    # rich.print(up.meta_ast)
+    rich.print(up.meta_ast)

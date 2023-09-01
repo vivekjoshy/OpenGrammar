@@ -44,6 +44,13 @@ Classes
       :param string: A string without quotes.
 
 
+   .. py:method:: OR_OPERATOR(token)
+
+      Discards OR tokens.
+
+      :param token: An OR token.
+
+
    .. py:method:: TERMINAL(string)
 
       Creates a terminal from a string.

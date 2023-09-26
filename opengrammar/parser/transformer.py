@@ -162,7 +162,7 @@ class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
 
     def rule(self, items: List[Union[LHS, RHS]]) -> Rule:
         lhs: LHS = typing.cast(LHS, items[0])
-        rhs: RHS = typing.cast(RHS, items[0])
+        rhs: RHS = typing.cast(RHS, items[1])
         return Rule(lhs=lhs, rhs=rhs)
 
     def syntax(self, items: List[Rule]) -> MetaSyntaxAST:

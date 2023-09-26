@@ -65,7 +65,7 @@ class Terminal:
 
     def __rich__(self) -> str:
         string = (
-            f"[bright_red]Terminal[/bright_red]   : "
+            f"[bright_red]Terminal[/bright_red]: "
             f"[bright_blue]{self.symbol}[/bright_blue]"
         )
         return string

@@ -1,6 +1,6 @@
 sphinx~=7.1
 shibuya~=2023.7
-pygments~=2.15
+pygments~=2.18
 myst_parser~=2.0  # Must Be Underscore, not Hyphen
 sphinx-intl~=2.1
 sphinx_favicon~=1.0

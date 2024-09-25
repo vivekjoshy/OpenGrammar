@@ -1,0 +1,33 @@
+# Open Grammar - Syntax
+#
+# Author: Vivek Joshy
+
+?start: judgement+
+judgement: context? TURNSTILE SPACE statement
+context: (declaration NEWLINE)+
+declaration: expression SEPARATOR SPACE type
+statement: expression SEPARATOR SPACE type
+
+expression: abstraction | application | VARIABLE
+application: expression SPACE expression | LEFT_PARENTHESIS expression SPACE expression RIGHT_PARENTHESIS
+abstraction: LEFT_PARENTHESIS LAMBDA VARIABLE SEPARATOR type DOT expression RIGHT_PARENTHESIS
+
+type: arrow_type | simple_type
+arrow_type: simple_type (SPACE TO SPACE type)
+simple_type: TYPE | LEFT_PARENTHESIS arrow_type RIGHT_PARENTHESIS
+
+# Terminal Definitions
+TURNSTILE: "\vdash" | "⊢"
+LAMBDA: "\lambda" | "λ"
+TO: "\to" | "→"
+DOT: "."
+TYPE: /[A-Z]/ | /[A-Z]_{1-9}\d*/
+VARIABLE: /[a-z]/ | /[a-z]_{[1-9]\d*}/
+SEPARATOR: ":"
+LEFT_PARENTHESIS: "("
+RIGHT_PARENTHESIS: ")"
+NEWLINE: /\n+/
+SPACE: " "
+
+%import common.WS
+%ignore WS

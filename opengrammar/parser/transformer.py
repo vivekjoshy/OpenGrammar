@@ -1,35 +1,29 @@
-"""
-This module contains the MetaSyntaxTransformer class, which is used to
-transform the Lark parse tree into a MetaSyntaxAST.
-"""
-import typing
-from functools import reduce
 from typing import List, Union
 
-from lark import Discard, Token, Transformer
-from lark.visitors import _DiscardType
+from lark import Transformer, Token
+from lark.visitors import Discard
 
-from opengrammar.parser.meta_syntax import (
-    LHS,
-    RHS,
-    Conjunction,
-    Disjunction,
-    MetaSyntaxAST,
-    NonTerminal,
-    Operands,
-    PostfixCapable,
-    PostfixType,
-    Rule,
-    Terminal,
+from opengrammar.parser.syntax import (
+    AST,
+    Type,
+    Variable,
+    Expression,
+    Abstraction,
+    Application,
+    ArrowType,
+    Judgement,
+    Declaration,
+    Statement,
+    SimpleType,
 )
 
 
-class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
+class SyntaxTransformer(Transformer[Token, AST]):
     """
-    Transforms the Lark parse tree into a MetaSyntaxAST.
+    This class is used to transform the Lark parse tree into an AST.
     """
 
-    def WS(self, token: Token) -> _DiscardType:
+    def WS(self, token: Token) -> Discard:
         """
         Discards whitespace.
 
@@ -37,7 +31,7 @@ class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
         """
         return Discard
 
-    def NEWLINE(self, token: Token) -> _DiscardType:
+    def NEWLINE(self, token: Token) -> Discard:
         """
         Discards newlines.
 
@@ -45,7 +39,7 @@ class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
         """
         return Discard
 
-    def SEPARATOR(self, token: Token) -> _DiscardType:
+    def SEPARATOR(self, token: Token) -> Discard:
         """
         Discards separators.
 
@@ -53,119 +47,176 @@ class MetaSyntaxTransformer(Transformer[Token, MetaSyntaxAST]):
         """
         return Discard
 
-    def DISJUNCTION_SYMBOL(self, token: Token) -> _DiscardType:
+    def SPACE(self, token: Token) -> Discard:
         """
-        Discards disjunction symbols.
+        Discards spaces.
 
-        :param token: A disjunction symbol token.
+        :param token: A space token.
         """
         return Discard
 
-    def TERMINAL(self, token: Token) -> Terminal:
-        return Terminal(symbol=token[1:-1])
+    def LEFT_PARENTHESIS(self, token: Token) -> Discard:
+        """
+        Discards left parentheses.
 
-    def terminal(self, items: List[Terminal]) -> Terminal:
-        return items[0]
+        :param token: A left parenthesis token.
+        """
+        return Discard
 
-    def NON_TERMINAL(self, token: Token) -> NonTerminal:
-        return NonTerminal(symbol=token)
+    def RIGHT_PARENTHESIS(self, token: Token) -> Discard:
+        """
+        Discards right parentheses.
 
-    def ZERO_OR_MORE(self, token: Token) -> str:
-        return str(token.value)
+        :param token: A right parenthesis token.
+        """
+        return Discard
 
-    def ONE_OR_MORE(self, token: Token) -> str:
-        return str(token.value)
+    def LAMBDA(self, token: Token) -> Discard:
+        """
+        Discards lambda.
 
-    def OPTIONAL(self, token: Token) -> str:
-        return str(token.value)
+        :param token: A lambda token.
+        """
+        return Discard
 
-    def postfix(self, items: List[str]) -> PostfixType:
-        operator = items[0]
-        if operator == "*":
-            return PostfixType.ZERO_OR_MORE
-        elif operator == "+":
-            return PostfixType.ONE_OR_MORE
-        elif operator == "?":
-            return PostfixType.OPTIONAL
-        raise SyntaxError("Unknown PostfixType Defined in Grammar")
+    def DOT(self, token: Token) -> Discard:
+        """
+        Discards dot.
 
-    def non_terminal(
-        self, items: Union[List[Union[NonTerminal, PostfixType]], List[NonTerminal]]
-    ) -> NonTerminal:
-        if len(items) > 1:
-            nt = typing.cast(NonTerminal, items[0])
-            nt.postfix = typing.cast(PostfixType, items[1])
-            return nt
+        :param token: A dot token.
+        """
+        return Discard
+
+    def TURNSTILE(self, token: Token) -> Discard:
+        """
+        Discards turnstiles.
+
+        :param token: A turnstile token.
+        """
+        return Discard
+
+    def TO(self, token: Token) -> Discard:
+        """
+        Discards "to".
+
+        :param token: A "to" token.
+        """
+        return Discard
+
+    def VARIABLE(self, token: Token) -> Variable:
+        """
+        Create a Variable object.
+
+        :param token: A variable token.
+        :return: A Variable object.
+        """
+        return Variable(name=token.value)
+
+    def TYPE(self, token: Token) -> SimpleType:
+        """
+        Create a Type object.
+
+        :param token: A type token.
+        :return: A Type object.
+        """
+        return SimpleType(name=token.value)
+
+    def type(self, types: List[Type]) -> Type:
+        """
+        Create a Type object.
+
+        :param types: A list of types.
+        :return: A Type object.
+        """
+        return types[0]
+
+    def arrow_type(self, types: List[Type]) -> ArrowType:
+        """
+        Create an ArrowType object.
+
+        :param types: A list of types.
+        :return: An ArrowType object.
+        """
+        return ArrowType(antecedent=types[0], consequent=types[1])
+
+    def simple_type(self, types: List[Type]) -> SimpleType:
+        """
+        Create a SimpleType object.
+
+        :param types: A list of types.
+        :return: A SimpleType object.
+        """
+        return types[0]
+
+    def abstraction(
+            self, objects: List[Union[Variable, Type, Expression]]
+    ) -> Abstraction:
+        """
+        Create an Abstraction object.
+
+        :param objects: A list of objects in the abstraction.
+        :return: An Abstraction object.
+        """
+        return Abstraction(variable=objects[0], type=objects[1], expression=objects[2])
+
+    def application(self, expressions: List[Expression]) -> Application:
+        """
+        Create an Application object.
+
+        :param expressions: A list of expressions.
+        :return: An Application object.
+        """
+        return Application(function=expressions[0], argument=expressions[1])
+
+    def expression(
+            self, objects: List[Union[Application, Abstraction, Variable]]
+    ) -> Expression:
+        """
+        Create an Expression object.
+
+        :param objects: A list of objects in the expression.
+        :return: An Expression object.
+        """
+        return objects[0]
+
+    def statement(self, objects: List[Union[Expression, Type]]) -> Statement:
+        """
+        Create a Statement object.
+
+        :param objects: A list of objects in the statement.
+        :return: A Statement object.
+        """
+        return Statement(expression=objects[0], type=objects[1])
+
+    def declaration(self, tokens: List[Union[Expression, Type]]) -> Declaration:
+        """
+        Create a Declaration object.
+
+        :param tokens: A list of tokens.
+        :return: A Declaration object.
+        """
+        return Declaration(expression=tokens[0], type=tokens[1])
+
+    def context(self, tokens: List[Declaration]) -> List[Declaration]:
+        """
+        Create a list of declarations.
+
+        :param tokens: A list of tokens.
+        :return: A list of declarations.
+        """
+        return tokens
+
+    def judgement(self, tokens: List[Union[List[Declaration], Statement]]) -> Judgement:
+        """
+        Create a list of statements.
+
+        :param tokens: A list of tokens.
+        :return: A list of statements.
+        """
+        if len(tokens) == 1:
+            return Judgement(context=[], statement=tokens[0])
         else:
-            nt = typing.cast(NonTerminal, items[0])
-            return nt
+            return Judgement(context=tokens[0], statement=tokens[1])
 
-    def lhs_bracketed(self, items: List[Operands]) -> Operands:
-        return items[1:-1][0]
-
-    def lhs_left_non_terminal(self, items: List[Operands]) -> Operands:
-        statements = reversed(items)
-        return reduce(lambda a, c: Conjunction(c, a), statements)
-
-    def lhs_right_non_terminal(self, items: List[Operands]) -> Operands:
-        statements = reversed(items)
-        return reduce(lambda a, c: Conjunction(c, a), statements)
-
-    def lhs_conjuncts(self, items: List[Operands]) -> Operands:
-        return items[0]
-
-    def lhs_disjuncts(self, items: List[Operands]) -> Operands:
-        statements = reversed(items)
-        return reduce(lambda a, c: Disjunction(c, a), statements)
-
-    def lhs_expressions(self, items: List[Operands]) -> Operands:
-        return items[0]
-
-    def lhs(self, items: List[Operands]) -> LHS:
-        rule: Union[NonTerminal, Conjunction, Disjunction] = typing.cast(
-            Union[NonTerminal, Conjunction, Disjunction], items[0]
-        )
-        return LHS(rule=rule)
-
-    def rhs_atoms(self, items: List[Operands]) -> Operands:
-        return items[0]
-
-    def rhs_conjuncts(self, items: List[Operands]) -> Operands:
-        if len(items) > 1:
-            statements = reversed(items)
-            return reduce(lambda a, c: Conjunction(c, a), statements)
-        else:
-            return items[0]
-
-    def rhs_disjuncts(self, items: List[Operands]) -> Operands:
-        if len(items) > 1:
-            statements = reversed(items)
-            return reduce(lambda a, c: Disjunction(c, a), statements)
-        else:
-            return items[0]
-
-    def rhs_expressions(self, items: List[Operands]) -> Operands:
-        return items[0]
-
-    def rhs_bracketed(
-        self, items: List[Union[Disjunction, Conjunction, PostfixType]]
-    ) -> PostfixCapable:
-        atoms: Union[Disjunction, Conjunction] = typing.cast(
-            Union[Disjunction, Conjunction], items[1:-2][0]
-        )
-        pt: PostfixType = typing.cast(PostfixType, items[1:][-1])
-        atoms.postfix = pt
-        return atoms
-
-    def rhs(self, items: List[Operands]) -> RHS:
-        return RHS(rule=items[0])
-
-    def rule(self, items: List[Union[LHS, RHS]]) -> Rule:
-        lhs: LHS = typing.cast(LHS, items[0])
-        rhs: RHS = typing.cast(RHS, items[1])
-        return Rule(lhs=lhs, rhs=rhs)
-
-    def syntax(self, items: List[Rule]) -> MetaSyntaxAST:
-        for index, item in enumerate(items):
-            item.number = index + 1
-        return MetaSyntaxAST(rules=items)
+    def start(self, judgements: List[Judgement]) -> AST:
+        return AST(judgements=judgements)

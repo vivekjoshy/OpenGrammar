@@ -3,7 +3,7 @@ package = "OpenGrammar"
 package_dir = "opengrammar"
 directory = "changes"
 filename = "CHANGELOG.rst"
-issue_format = "`#{issue} <https://github.com/OpenDebates/OpenGrammar/issues/{issue}>`_"
+issue_format = "`#{issue} <https://github.com/vivekjoshy/OpenGrammar/issues/{issue}>`_"
 type = [
     { name = "Breaking Changes",            directory = "breaking",     showcontent = true },
     { name = "Deprecation",                 directory = "deprecation",  showcontent = true },
@@ -32,18 +32,25 @@ python_files = [
 	"tests.py"
 ]
 
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
 [project]
 name = "opengrammar"
 version = "0.1.0"
 authors = [
-    {name = "Vivek Joshy", email = "vivek@opendebates.net"},
+    {name = "Vivek Joshy", email = "vivekjoshy@outlook.in"},
 ]
 maintainers = [
-  {name = "Vivek Joshy", email = "vivek@opendebates.net"}
+  {name = "Vivek Joshy", email = "vivekjoshy@outlook.in"}
 ]
-description = "Natural Language Inference Engine and Universal Parser"
+description = "Natural Language Inference Engine"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 keywords = ["parser", "nlp", "grammar"]
 license = {text = "MIT"}
 classifiers = [
@@ -53,10 +60,11 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython"
 ]
 dependencies = [
-    "lark~=1.1.7",
+    "lark~=1.2",
     "rich~=13.4",
     "typer~=0.9"
 ]
@@ -69,49 +77,26 @@ Source = "https://github.com/OpenDebates/OpenGrammar"
 Tracker = "https://github.com/OpenDebates/OpenGrammar/issues"
 
 
-
-[tool.pdm.dev-dependencies]
-docs = [
-    "sphinx~=7.1",
-    "shibuya~=2023.7",
-    "pygments~=2.15",
-    "myst-parser~=2.0",
-    "sphinx-intl~=2.1",
-    "sphinx-favicon~=1.0",
-    "sphinx-copybutton~=0.5",
-    "sphinx-autoapi~=2.1",
-    "sphinxext-opengraph~=0.8",
-    "sphinxcontrib-bibtex~=2.5",
-    "sphinx-autodoc-typehints~=1.24",
-]
-tests = [
-    "tox~=4.6",
-    "mypy~=1.4.1",
-    "pytest~=7.3",
-    "coverage~=7.2",
-    "pytest-cov~=4.0"
-]
-release = [
-    "twine~=4.0",
-    "build~=0.10",
-    "isort~=5.12",
-    "black~=23.7",
+[tool.uv]
+dev-dependencies = [
+    "tox~=4.16",
+    "mypy~=1.10",
+    "pytest~=8.2",
+    "coverage~=7.6",
+    "pytest-cov~=5.0",
+    "twine~=5.1",
+    "build~=1.2",
+    "isort~=5.13",
+    "black~=24.8",
     "codecov~=2.1",
-    "towncrier~=23.6",
-    "bump2version~=1.0",
+    "towncrier~=24.8",
+    "bump-my-version~=0.26",
 ]
 
-[tool.pdm.build]
-includes = ["opengrammar/", "opengrammar/py.typed", "LICENSE", "README.md"]
-is-purelib = true
-
-[tool.isort]
-profile = "black"
-
-[tool.mypy]
-python_version = "3.8"
-strict = true
+[tool.setuptools]
+packages = ["opengrammar"]
 
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+

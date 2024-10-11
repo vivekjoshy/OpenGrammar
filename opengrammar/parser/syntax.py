@@ -1,240 +1,490 @@
+from enum import Enum
 from typing import List, Union
 
 from rich.tree import Tree
 
 
-class Variable:
+class Name:
     """
-    Represents a variable in the Simply Typed Lambda Calculus (STLC).
-
-    In STLC, variables are typed and can be bound by abstractions
-    (lambda terms). They are the basic building blocks of lambda terms and
-    can represent both free and bound variables in expressions.
+    The name of a constant.
     """
 
     def __init__(self, name: str) -> None:
         """
-        Initializes a variable with a given name.
+        Initializes the name.
 
-        :param name: The name of the variable, typically a single letter
-                     in STLC.
+        :param name: The name of the constant.
         """
         self.name: str = name
+
+    def __repr__(self) -> str:
+        return f"Name(name='{self.name}')"
+
+    def __rich__(self) -> Tree:
+        return Tree(f"[blue]Name[/blue]: [white]{self.name}[/white]")
+
+
+class Variable:
+    """
+    The name of a variable.
+    """
+
+    def __init__(self, name: str) -> None:
+        """
+        Initializes the name.
+
+        :param name: The name of the variable.
+        """
+        self.name: str = name
+
+    def __repr__(self) -> str:
+        return f"Variable(name='{self.name}')"
 
     def __rich__(self) -> Tree:
         return Tree(f"[blue]Variable[/blue]: [white]{self.name}[/white]")
 
-    def __repr__(self) -> str:
-        return f"Variable[Name: {self.name}]"
-
-
-class Application:
-    """
-    Represents function application in STLC.
-
-    Application is one of the two main constructs in lambda calculus,
-    alongside abstraction. It represents the act of applying a function
-    (the left term) to an argument (the right term). In STLC, the types of
-    the function and argument must be compatible for the application to
-    be valid.
-    """
-
-    def __init__(self, function: "Expression", argument: "Expression") -> None:
-        """
-        Initializes an application with a function and its argument.
-
-        :param function: The function (left term) of the application.
-        :param argument: The argument (right term) to which the function is applied.
-        """
-        self.function: Expression = function
-        self.argument: Expression = argument
-
-    def __rich__(self) -> Tree:
-        tree = Tree(f"[bright_yellow]Application[/bright_yellow]")
-        function_tree = Tree(f"[yellow]Function[/yellow]")
-        function_tree.add(self.function)
-        argument_tree = Tree(f"[yellow]Argument[/yellow]")
-        argument_tree.add(self.argument)
-        tree.add(function_tree)
-        tree.add(argument_tree)
-        return tree
-
-    def __repr__(self) -> str:
-        return f"Application[]"
-
-
-class Abstraction:
-    """
-    Represents a lambda abstraction in STLC.
-
-    Abstraction is a core concept in lambda calculus, introducing a bound
-    variable and a body in which that variable may appear. In STLC,
-    abstractions are typed, meaning the bound variable has an explicit type
-    annotation. This is a key difference from untyped lambda calculus.
-    """
-
-    def __init__(
-        self, variable: Variable, type: "Type", expression: "Expression"
-    ) -> None:
-        """
-        Initializes a lambda abstraction.
-
-        :param variable: The bound variable of the abstraction.
-        :param type: The type of the bound variable, a key feature of STLC.
-        :param expression: The body of the abstraction, an expression that
-                           may contain the bound variable.
-        """
-        self.variable: Variable = variable
-        self.type: Type = type
-        self.expression: Expression = expression
-
-    def __rich__(self) -> Tree:
-        tree = Tree(f"[bright_red]Abstraction[/bright_red]: [white]λ{self.variable.name}[/white]")
-        tree.add(self.type)
-        tree.add(self.expression)
-        return tree
-
-    def __repr__(self) -> str:
-        return f"Abstraction[Variable: {self.variable.name}]"
-
 
 class SimpleType:
     """
-    Represents a simple type in STLC.
-
-    Types are a fundamental aspect of STLC, distinguishing it from untyped
-    lambda calculus. Simple types can represent basic types (like Int, Bool)
-    or type variables. They are used to ensure type consistency and enable
-    type checking in STLC expressions.
+    The name of a type.
     """
 
     def __init__(self, name: str) -> None:
         """
-        Initializes a simple type.
+        Initializes the name.
 
         :param name: The name of the type.
         """
         self.name: str = name
 
+    def __repr__(self) -> str:
+        return f"SimpleType(name='{self.name}')"
+
     def __rich__(self) -> Tree:
         return Tree(f"[green]Simple Type[/green]: [white]{self.name}[/white]")
 
-    def __repr__(self) -> str:
-        return f"SimpleType[Name: {self.name}]"
 
-
-class ArrowType:
+class BiConditional:
     """
-    Represents a function type (arrow type) in STLC.
+    The BiConditional Connective.
+    """
 
-    Arrow types are compound types used to represent functions. They consist
-    of an input type (antecedent) and an output type (consequent). In STLC,
-    all functions are unary (single-argument), so multi-argument functions
-    are represented through currying.
+    def __init__(self, antecedent: "Expression", consequent: "Expression") -> None:
+        """
+        Initializes the BiConditional.
+
+        :param antecedent: The antecedent of the BiConditional.
+        :param consequent: The consequent of the BiConditional.
+        """
+        self.antecedent: Expression = antecedent
+        self.consequent: Expression = consequent
+
+    def __repr__(self) -> str:
+        return (
+            f"BiConditional(antecedent={self.antecedent}, consequent={self.consequent})"
+        )
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_cyan]BiConditional[/bright_cyan]: [white]↔[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class Conditional:
+    """
+    The Conditional Connective.
+    """
+
+    def __init__(self, antecedent: "Expression", consequent: "Expression") -> None:
+        """
+        Initializes the Conditional.
+
+        :param antecedent: The antecedent of the Conditional.
+        :param consequent: The consequent of the Conditional.
+        """
+        self.antecedent: Expression = antecedent
+        self.consequent: Expression = consequent
+
+    def __repr__(self) -> str:
+        return (
+            f"Conditional(antecedent={self.antecedent}, consequent={self.consequent})"
+        )
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_green]Conditional[/bright_green]: [white]→[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class Disjunction:
+    """
+    The Disjunction Connective.
+    """
+
+    def __init__(self, antecedent: "Expression", consequent: "Expression") -> None:
+        """
+        Initializes the Disjunction.
+
+        :param antecedent: The antecedent of the Disjunction.
+        :param consequent: The consequent of the Disjunction.
+        """
+        self.antecedent: Expression = antecedent
+        self.consequent: Expression = consequent
+
+    def __repr__(self) -> str:
+        return (
+            f"Disjunction(antecedent={self.antecedent}, consequent={self.consequent})"
+        )
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_yellow]Disjunction[/bright_yellow]: [white]∨[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class Conjunction:
+    """
+    The Conjunction Connective.
+    """
+
+    def __init__(self, antecedent: "Expression", consequent: "Expression") -> None:
+        """
+        Initializes the Conjunction.
+
+        :param antecedent: The antecedent of the Conjunction.
+        :param consequent: The consequent of the Conjunction.
+        """
+        self.antecedent: Expression = antecedent
+        self.consequent: Expression = consequent
+
+    def __repr__(self) -> str:
+        return (
+            f"Conjunction(antecedent={self.antecedent}, consequent={self.consequent})"
+        )
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_magenta]Conjunction[/bright_magenta]: [white]∧[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class Negation:
+    """
+    A unary negation connective.
+    """
+
+    def __init__(self, expression: "Expression") -> None:
+        """
+        Initializes the Negation.
+
+        :param expression: The expression to be negated.
+        """
+        self.expression: Expression = expression
+
+    def __repr__(self) -> str:
+        return f"Negation(expression={self.expression})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_red]Negation[/bright_red]: [white]¬[/white]")
+        tree.add(self.expression)
+        return tree
+
+
+class Equality:
+    """
+    The Equality Predicate.
+    """
+
+    def __init__(self, antecedent: "Term", consequent: "Term") -> None:
+        """
+        Initializes the Equality.
+
+        :param antecedent: The antecedent of the Equality.
+        :param consequent: The consequent of the Equality.
+        """
+        self.antecedent: Term = antecedent
+        self.consequent: Term = consequent
+
+    def __repr__(self) -> str:
+        return f"Equality(antecedent={self.antecedent}, consequent={self.consequent})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_white]Equality[/bright_white]: [white]=[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class Predicate:
+    """
+    The Predicate.
+    """
+
+    def __init__(self, name: str, terms: List["Term"]) -> None:
+        """
+        Initializes the Predicate.
+
+        :param name: The name of the predicate.
+        :param terms: The terms of the predicate.
+        """
+        self.name: str = name
+        self.terms: List[Term] = terms
+
+    def __repr__(self) -> str:
+        return f"Predicate(name='{self.name}', terms={self.terms})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[cyan]Predicate[/cyan]: [white]{self.name}[/white]")
+        for term in self.terms:
+            tree.add(term)
+        return tree
+
+
+class QuantifierOperator(Enum):
+    UNIVERSAL = "∀"
+    EXISTENTIAL = "∃"
+
+
+class QuantifiedExpression:
+    """
+    A quantified expression.
+    """
+
+    def __init__(
+        self,
+        quantifier: QuantifierOperator,
+        variable: Variable,
+        type_expression: "Type",
+        expression: "Expression",
+    ) -> None:
+        """
+        Initializes the QuantifiedExpression.
+
+        :param quantifier: Either UNIVERSAL or EXISTENTIAL.
+        :param variable: The variable in the quantified expression.
+        :param type_expression: The type of the variable.
+        :param expression: The expression in the quantified expression.
+        """
+        self.quantifier: QuantifierOperator = quantifier
+        self.variable: Variable = variable
+        self.type_expression: "Type" = type_expression
+        self.expression: Expression = expression
+
+    def __repr__(self) -> str:
+        return f"QuantifiedExpression(quantifier={self.quantifier}, variable={self.variable}, type_expression={self.type_expression}, expression={self.expression})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(
+            f"[bright_red]Quantified Expression[/bright_red]: [white]{self.quantifier.value}[/white]"
+        )
+        tree.add(self.variable.__rich__().add(self.type_expression))
+        tree.add(self.expression)
+        return tree
+
+
+class TypeBiConditional:
+    """
+    A bi-conditional type.
     """
 
     def __init__(self, antecedent: "Type", consequent: "Type") -> None:
         """
-        Initializes an arrow type.
+        Initializes the TypeBiConditional.
 
-        :param antecedent: The input type of the function.
-        :param consequent: The output type of the function.
+        :param antecedent: The antecedent type.
+        :param consequent: The consequent type.
         """
-        self.antecedent: Type = antecedent
-        self.consequent: Type = consequent
-
-    def __rich__(self) -> Tree:
-        tree = Tree(f"[red]Arrow Type[/red]: [white]→[/white]")
-        antecedent_tree = Tree("Antecedent")
-        antecedent_tree.add(self.antecedent)
-        tree.add(antecedent_tree)
-        consequent_tree = Tree("Consequent")
-        consequent_tree.add(self.consequent)
-        tree.add(consequent_tree)
-        return tree
+        self.antecedent: "Type" = antecedent
+        self.consequent: "Type" = consequent
 
     def __repr__(self) -> str:
-        return "ArrowType[<>]"
+        return f"TypeBiConditional(antecedent={self.antecedent}, consequent={self.consequent})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_cyan]Type BiConditional[/bright_cyan]: [white]↔[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class TypeConditional:
+    """
+    A conditional type.
+    """
+
+    def __init__(self, antecedent: "Type", consequent: "Type") -> None:
+        """
+        Initializes the TypeConditional.
+
+        :param antecedent: The antecedent type.
+        :param consequent: The consequent type.
+        """
+        self.antecedent: "Type" = antecedent
+        self.consequent: "Type" = consequent
+
+    def __repr__(self) -> str:
+        return f"TypeConditional(antecedent={self.antecedent}, consequent={self.consequent})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[bright_green]Type Conditional[/bright_green]: [white]→[/white]")
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class TypeDisjunction:
+    """
+    A disjunction type.
+    """
+
+    def __init__(self, antecedent: "Type", consequent: "Type") -> None:
+        """
+        Initializes the TypeDisjunction.
+
+        :param antecedent: The antecedent type.
+        :param consequent: The consequent type.
+        """
+        self.antecedent: "Type" = antecedent
+        self.consequent: "Type" = consequent
+
+    def __repr__(self) -> str:
+        return f"TypeDisjunction(antecedent={self.antecedent}, consequent={self.consequent})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(
+            f"[bright_yellow]Type Disjunction[/bright_yellow]: [white]∨[/white]"
+        )
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
+
+
+class TypeConjunction:
+    """
+    A conjunction type.
+    """
+
+    def __init__(self, antecedent: "Type", consequent: "Type") -> None:
+        """
+        Initializes the TypeConjunction.
+
+        :param antecedent: The antecedent type.
+        :param consequent: The consequent type.
+        """
+        self.antecedent: "Type" = antecedent
+        self.consequent: "Type" = consequent
+
+    def __repr__(self) -> str:
+        return f"TypeConjunction(antecedent={self.antecedent}, consequent={self.consequent})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(
+            f"[bright_magenta]Type Conjunction[/bright_magenta]: [white]∧[/white]"
+        )
+        tree.add(self.antecedent)
+        tree.add(self.consequent)
+        return tree
 
 
 class Declaration:
     """
-    Represents a type declaration in STLC.
-
-    Declarations associate expressions with their types. They are used in
-    contexts to specify the types of free variables or to define typed
-    constants. In STLC, all expressions must be well-typed according to these
-    declarations.
+    A declaration.
     """
 
-    def __init__(self, expression: "Expression", type: "Type") -> None:
+    def __init__(self, term: Union["Term", "Type"], type_expression: "Type") -> None:
         """
-        Initializes a declaration.
+        Initializes the Declaration.
 
-        :param expression: The expression being declared.
-        :param type: The type assigned to the expression.
+        :param term: The term being declared.
+        :param type_expression: The type of the term being declared.
         """
-        self.expression: Expression = expression
-        self.type: Type = type
+        self.term: Union[Term, Type] = term
+        self.type_expression: Type = type_expression
+
+    def __repr__(self) -> str:
+        return f"Declaration(term={self.term}, type_expression={self.type_expression})"
 
     def __rich__(self) -> Tree:
         tree = Tree(f"[magenta]Declaration[/magenta]")
-        tree.add(self.expression)
-        tree.add(self.type)
+        inhabitant = Tree(f"[bright_blue]Inhabitant[/bright_blue]")
+        inhabitant.add(self.term)
+        type = Tree(f"[bright_cyan]Type[/bright_cyan]")
+        type.add(self.type_expression)
+        tree.add(inhabitant)
+        tree.add(type)
         return tree
-
-    def __repr__(self) -> str:
-        return f"Declaration[<>]"
 
 
 class Statement:
     """
-    Represents a typing statement in STLC.
-
-    A statement asserts that an expression has a particular type. In the
-    context of type checking or inference, statements are what we aim to
-    prove or derive based on the given declarations and typing rules of STLC.
+    A statement.
     """
 
-    def __init__(self, expression: "Expression", type: "Type") -> None:
+    def __init__(self, expression: "Expression") -> None:
         """
-        Initializes a typing statement.
+        Initializes the Statement.
 
-        :param expression: The expression whose type is being stated.
-        :param type: The type asserted for the expression.
+        :param expression: The expression being declared.
         """
         self.expression: Expression = expression
-        self.type: Type = type
-
-    def __rich__(self) -> Tree:
-        tree = Tree(f"[yellow]Statement[/yellow]: [white]Λ[/white]")
-        tree.add(self.expression)
-        tree.add(self.type)
-        return tree
 
     def __repr__(self) -> str:
-        return f"Statement[<>]"
+        return f"Statement(expression={self.expression})"
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[yellow]Statement[/yellow]")
+        tree.add(self.expression)
+        return tree
+
+
+class TypeStatement:
+    """
+    A type statement.
+    """
+
+    def __init__(self, term: "Term", type_expression: "Type") -> None:
+        """
+        Initializes the TypeStatement.
+
+        :param term: The term being declared.
+        :param type_expression: The type of the term being declared.
+        """
+        self.term: Term = term
+        self.type_expression: "Type" = type_expression
+
+    def __repr__(self) -> str:
+        return (
+            f"TypeStatement(term={self.term}, type_expression={self.type_expression})"
+        )
+
+    def __rich__(self) -> Tree:
+        tree = Tree(f"[yellow]Type Statement[/yellow]")
+        tree.add(self.term)
+        tree.add(self.type_expression)
+        return tree
 
 
 class Judgement:
     """
-    Represents a typing judgement in STLC.
-
-    A judgement consists of a typing context (a set of assumptions about types
-    of variables) and a statement to be proved. It forms the basis of type
-    checking and inference in STLC.
+    A judgement.
     """
 
-    def __init__(self, context: List[Declaration], statement: "Statement") -> None:
+    def __init__(self, context: List[Declaration], statement: Statement) -> None:
         """
-        Initializes a typing judgement.
+        Initializes the Judgement.
 
-        :param context: A list of declarations forming the typing context.
-        :param statement: The typing statement to be proved under the given
-                          context.
+        :param context: The context of the judgement.
+        :param statement: The statement being judged.
         """
-        self.context: List[Declaration] = context if context else []
+        self.context: List[Declaration] = context
         self.statement: Statement = statement
+
+    def __repr__(self) -> str:
+        return f"Judgement(context={self.context}, statement={self.statement})"
 
     def __rich__(self) -> Tree:
         tree = Tree(f"[bright_magenta]Judgement[/bright_magenta]")
@@ -251,17 +501,14 @@ class Judgement:
         tree.add(turnstile_tree)
         return tree
 
-    def __repr__(self) -> str:
-        return f"Judgement[Context Count: {len(self.context)}]"
-
 
 class AST:
     """
-    Represents the Abstract Syntax Tree (AST) of an STLC program.
+    Represents the Abstract Syntax Tree (AST) of an OpenGrammar program.
 
-    The AST captures the structure of the STLC program, consisting of a
+    The AST captures the structure of the OpenGrammar program, consisting of a
     series of typing judgements. It serves as the foundation for type
-    checking, evaluation, and other analyses of STLC programs.
+    checking, evaluation, and other analyses of OpenGrammar programs.
     """
 
     def __init__(self, judgements: List[Judgement]) -> None:
@@ -269,7 +516,7 @@ class AST:
         Initializes the AST with a list of typing judgements.
 
         :param judgements: A list of typing judgements that make up the
-                           STLC program.
+                           OpenGrammar program.
         """
         self.judgements: List[Judgement] = judgements
 
@@ -283,5 +530,16 @@ class AST:
         return f"AST[Judgement Count: {len(self.judgements)}]"
 
 
-Expression = Union[Application, Abstraction, Variable]
-Type = Union[SimpleType, ArrowType]
+Term = Union[Variable, str]
+Atom = Union[Predicate, QuantifiedExpression, Equality, TypeStatement]
+Expression = Union[
+    BiConditional,
+    Conditional,
+    Disjunction,
+    Conjunction,
+    Negation,
+    Atom,
+]
+Type = Union[
+    TypeBiConditional, TypeConditional, TypeDisjunction, TypeConjunction, SimpleType
+]

@@ -1,33 +1,73 @@
-# Open Grammar - Syntax
+# Typed First-Order Logic - Open Grammar
 #
 # Author: Vivek Joshy
 
 ?start: judgement+
 judgement: context? TURNSTILE SPACE statement
 context: (declaration NEWLINE)+
-declaration: expression SEPARATOR SPACE type
-statement: expression SEPARATOR SPACE type
 
-expression: abstraction | application | VARIABLE
-application: expression SPACE expression | LEFT_PARENTHESIS expression SPACE expression RIGHT_PARENTHESIS
-abstraction: LEFT_PARENTHESIS LAMBDA VARIABLE SEPARATOR type DOT expression RIGHT_PARENTHESIS
+# Declarations
+declaration: term_declaration | type_declaration
+term_declaration: term SEPARATOR type_expression
+type_declaration: TYPE SEPARATOR type_expression
 
-type: arrow_type | simple_type
-arrow_type: simple_type (SPACE TO SPACE type)
-simple_type: TYPE | LEFT_PARENTHESIS arrow_type RIGHT_PARENTHESIS
+# Statements
+?statement: biconditional
+?biconditional: conditional (IFF conditional)*
+?conditional: disjunction (IMPLIES disjunction)*
+?disjunction : conjunction (OR conjunction)*
+?conjunction: negation (AND negation)*
+?negation: NOT? atom
+?atom: predicate
+     | quantified
+     | LEFT_PARENTHESIS statement RIGHT_PARENTHESIS
+     | equality
+     | type_statement
+
+predicate: PREDICATE_NAME LEFT_PARENTHESIS term (COMMA term)* RIGHT_PARENTHESIS
+quantified: (FORALL | EXISTS) VARIABLE SEPARATOR type_expression LEFT_PARENTHESIS statement RIGHT_PARENTHESIS
+equality: term EQUALS term
+
+# Type Expressions and Type Operations
+?type_expression: type_biconditional
+?type_biconditional: type_conditional (IFF type_conditional)*
+?type_conditional: type_disjunction (IMPLIES type_disjunction)*
+?type_disjunction: type_conjunction (OR type_conjunction)*
+?type_conjunction: type_atom (AND type_atom)*
+?type_atom: TYPE | LEFT_PARENTHESIS type_expression RIGHT_PARENTHESIS
+
+# Type Statements
+type_statement: term SEPARATOR type_expression
+
+# Terms
+?term: NAME | VARIABLE
 
 # Terminal Definitions
 TURNSTILE: "\vdash" | "⊢"
-LAMBDA: "\lambda" | "λ"
-TO: "\to" | "→"
-DOT: "."
 TYPE: /[A-Z]/ | /[A-Z]_{1-9}\d*/
-VARIABLE: /[a-z]/ | /[a-z]_{[1-9]\d*}/
+NAME: /[a-t]/ | /[a-t]_[1-9]\d*/
+VARIABLE: /[u-z]/ | /[u-z]_[1-9]\d*/
+PREDICATE_NAME: /[A-Z][a-z0-9]*/
 SEPARATOR: ":"
 LEFT_PARENTHESIS: "("
 RIGHT_PARENTHESIS: ")"
+COMMA: ","
 NEWLINE: /\n+/
 SPACE: " "
+
+# Quantifiers
+FORALL: "\forall" | "∀"
+EXISTS: "\exists" | "∃"
+
+# Connectives
+NOT: "\neg" | "¬"
+AND: "\land" | "∧"
+OR: "\lor" | "∨"
+IMPLIES: "\implies" | "→"
+IFF: "\iff" | "↔"
+
+# Equality
+EQUALS: "="
 
 %import common.WS
 %ignore WS

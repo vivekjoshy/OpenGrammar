@@ -79,18 +79,18 @@ Tracker = "https://github.com/OpenDebates/OpenGrammar/issues"
 
 [tool.uv]
 dev-dependencies = [
-    "tox~=4.16",
-    "mypy~=1.10",
+    "tox~=4.21",
+    "mypy~=1.11",
     "pytest~=8.2",
     "coverage~=7.6",
     "pytest-cov~=5.0",
     "twine~=5.1",
     "build~=1.2",
     "isort~=5.13",
-    "black~=24.8",
+    "black~=24.10",
     "codecov~=2.1",
     "towncrier~=24.8",
-    "bump-my-version~=0.26",
+    "bump-my-version~=0.27",
 ]
 
 [tool.setuptools]

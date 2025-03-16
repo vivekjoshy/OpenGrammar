@@ -1,0 +1,125 @@
+[tool.towncrier]
+package = "OpenGrammar"
+package_dir = "opengrammar"
+directory = "changes"
+filename = "CHANGELOG.rst"
+issue_format = "`#{issue} <https://github.com/vivekjoshy/OpenGrammar/issues/{issue}>`_"
+type = [
+    { name = "Breaking Changes",            directory = "breaking",     showcontent = true },
+    { name = "Deprecation",                 directory = "deprecation",  showcontent = true },
+    { name = "Features",                    directory = "feature",      showcontent = true },
+    { name = "Bugfixes",                    directory = "bugfix",       showcontent = true },
+    { name = "Documentation Improvements",  directory = "doc",          showcontent = true },
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra --strict-markers --ignore=docs/conf.py --ignore=setup.py --ignore=.eggs --doctest-modules --doctest-glob=/*.py --tb=short"
+norecursedirs = [
+	".git",
+	".tox",
+	".env",
+	"dist",
+	"build",
+	"migrations"
+]
+testpaths = [
+    "tests"
+]
+python_files = [
+	"test_*.py",
+	"*_test.py",
+	"tests.py"
+]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[project]
+name = "opengrammar"
+version = "0.1.0"
+authors = [
+    {name = "Vivek Joshy", email = "inbox@vivekjoshy.com"},
+]
+maintainers = [
+  {name = "Vivek Joshy", email = "inbox@vivekjoshy.com"}
+]
+description = "Natural Language Inference Engine"
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = ["parser", "nlp", "grammar"]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 1 - Planning",
+	"Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython"
+]
+dependencies = [
+  "dynaconf~=3.2",
+  "lightning~=2.5",
+  "loguru~=0.7",
+  "pandas~=2.2",
+  "pyarrow~=19.0",
+  "rich~=13.9",
+  "scikit-learn>=1.6",
+  "setuptools~=75.8",
+  "torchmetrics~=1.6",
+  "typer~=0.15",
+  "uvicorn>=0.34",
+  "wandb~=0.19",
+]
+
+[project.scripts]
+opengrammar = "opengrammar.__main__:cli"
+
+[project.urls]
+Documentation = "https://opengrammar.readthedocs.io/en/stable"
+Changelog = "https://github.com/vivekjoshy/OpenGrammar/blob/main/CHANGELOG.rst"
+Funding = "https://github.com/sponsors/vivekjoshy"
+Source = "https://github.com/vivekjoshy/OpenGrammar"
+Tracker = "https://github.com/vivekjoshy/OpenGrammar/issues"
+
+
+[project.optional-dependencies]
+docs = [
+    "sphinx~=8.1",
+    "pygments~=2.19",
+    "shibuya~=2025.2",
+    "matplotlib~=3.10",
+    "myst-parser~=4.0",
+    "sphinx-favicon~=1.0",
+    "sphinx-copybutton~=0.5",
+    "sphinxcontrib-bibtex~=2.6",
+    "sphinx-autodoc-typehints~=3.1",
+]
+tests = [
+    "tox~=4.24",
+    "mypy~=1.15",
+    "httpx~=0.28",
+    "pytest~=8.3",
+    "coverage~=7.6",
+    "pytest-cov~=6.0",
+]
+build = [
+    "build~=1.2",
+    "isort~=6.0",
+    "black[jupyter]~=25.1",
+    "towncrier~=24.8",
+    "bump-my-version~=0.32",
+]
+
+[tool.setuptools]
+packages = ["opengrammar"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+

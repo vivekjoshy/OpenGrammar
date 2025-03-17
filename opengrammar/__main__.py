@@ -1,71 +1,87 @@
+"""
+Command-line interface for the OpenGrammar neural language model.
+"""
+
 import gc
+import sys
 from pathlib import Path
 from typing import Optional
 
-import rich
 import torch
+import typer
 from dynaconf import Dynaconf
-from typer import Typer
+from rich import print
 
 from opengrammar import __version__
 from opengrammar.experiment import Experiment
 
-# Command Line Interface
-cli: Typer = Typer()
+# Create CLI
+cli = typer.Typer(
+    name="opengrammar",
+    help="OpenGrammar - Neuromorphic language learning",
+    add_completion=False,
+)
+
+
+@cli.command(name="train")
+def train(
+    config: Optional[Path] = typer.Option(
+        None, "--config", "-c", help="Path to configuration file"
+    ),
+    batch: Optional[int] = typer.Option(
+        None, "--batch", "-b", help="Override batch size from configuration"
+    ),
+    model: Optional[Path] = typer.Option(
+        None, "--model", "-m", help="Path to existing model for continued training"
+    ),
+) -> None:
+    """Train an OpenGrammar model."""
+    try:
+        # Load settings from config file if provided
+        if config:
+            if not config.exists():
+                print(f"[red]Config file not found: {config}[/red]")
+                sys.exit(1)
+            settings = Dynaconf(settings_files=[config])
+        else:
+            # Load default settings
+            settings = Dynaconf(
+                settings_files=["config.toml", ".secrets.toml"],
+                environments=True,
+                env_prefix="OPENGRAMMAR",
+                load_dotenv=True,
+            )
+
+        # Create experiment
+        experiment = Experiment(settings=settings)
+
+        # Start training
+        experiment.train(
+            batch=batch,
+            model_path=model,
+        )
+
+    except Exception as e:
+        print(f"[red]Error during training: {e}[/red]")
+        import traceback
+
+        traceback.print_exc()
+        sys.exit(1)
 
 
 @cli.command(help="Show Version")
 def version() -> None:
-    rich.print(f"Open Grammar: [blue]v{__version__}[/blue]")
-
-
-@cli.command(help="Start Training")
-def train(
-    config: Optional[Path] = None,
-    batch: Optional[int] = None,
-    model: Optional[Path] = None,
-) -> None:
-    if config:
-        # Check if config.toml
-        if not str(config).endswith("config.toml"):
-            rich.print("[[red]Invalid Config[/red]]: Not a config.toml file.")
-            return
-
-        if not config.exists():
-            rich.print("[[red]Invalid Config[/red]]: Path does not exist.")
-            return
-
-        settings_files = [str(config.absolute())]
-    else:
-        settings_files = []
-
-    # Configurations
-    settings = Dynaconf(
-        envvar_prefix="OPENGRAMMAR",
-        settings_files=settings_files,
-        environments=False,
-        load_dotenv=True,
-        env_switcher="OPENGRAMMAR_ENV",
-    )
-
-    # Initialize Experiment
-    experiment = Experiment(settings=settings)
-
-    # Start Training
-    experiment.train(
-        batch=batch,
-        model_path=model,
-    )
+    """Display the package version."""
+    typer.echo(f"OpenGrammar: v{__version__}")
 
 
 @cli.command(help="Clear CUDA Cache")
 def clear() -> None:
-    torch.cuda.empty_cache()
-    _ = gc.collect()
-    torch.cuda.empty_cache()
-    _ = gc.collect()
-    rich.print("[green]Cache Cleared [/green]")
-
-
-if __name__ == "__main__":
-    cli()
+    """Clear CUDA cache to free GPU memory."""
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        gc.collect()
+        torch.cuda.empty_cache()
+        typer.echo("GPU cache cleared")
+    else:
+        typer.echo("No GPU available")

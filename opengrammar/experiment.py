@@ -1,9 +1,10 @@
 import gc
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import lightning as L
 import rich
+import torch
 import torch.cuda
 import wandb
 from dynaconf import LazySettings
@@ -21,17 +22,17 @@ from opengrammar.model.meta import OpenGrammar
 
 
 class Experiment:
-    def __init__(self, settings: LazySettings):
+    def __init__(self, settings: LazySettings) -> None:
         """
-        Check if the settings are correct.
+        Initialize the OpenGrammar experiment with settings.
 
-        :param settings: A settings object.
+        :param settings: A settings object containing configuration parameters.
         """
         self.settings = settings
 
         self.wandb_logger: Optional[WandbLogger] = None
         if "wandb_token" in self.settings:
-            rich.print("[[green]Token Found[/green]]: Using WandB")
+            rich.print("[Token Found]: Using WandB")
             token = self.settings["wandb_token"]
             wandb.login(key=token)
             self.wandb_logger = WandbLogger(project="OpenGrammar", log_model="all")
@@ -56,10 +57,19 @@ class Experiment:
         self.batch = settings.get("batch", None)
         self.lr = settings.get("lr", 0.00001)
         self.epochs = settings("epochs", 10)
-        self.hidden_dim = settings.get("hidden_dim", 128)
+        self.hidden_size = settings.get("hidden_size", 128)
+        self.layer_count = settings.get("layer_count", 4)
         self.tensor_cores = settings.get("tensor_cores", True)
         self.devices = settings.get("devices", 1)
+        self.random_seed = settings.get("random_seed", 7)
         self.debug = settings.get("debug", False)
+        self.use_gpu = settings.get("use_gpu", True)
+        self.checkpoint_dir = Path(settings.get("checkpoint_dir", "checkpoints"))
+        self.sequence_length = settings.get("sequence_length", 1024)
+
+        # These will be initialized when needed
+        self.train_dataset: Optional[MiniPileDataset] = None
+        self.val_dataset: Optional[MiniPileDataset] = None
 
     def train(
         self,
@@ -67,122 +77,214 @@ class Experiment:
         model_path: Optional[Path] = None,
     ) -> bool:
         """
-        Train the model.
+        Train the OpenGrammar model.
 
-        :batch: The number of samples per batch.
-        :model_path: The model path.
+        :param batch: The number of samples per batch.
+        :param model_path: The model checkpoint path for resuming training.
         :return: True if the training was successful, False otherwise.
         """
 
-        rich.print("[[yellow]Starting Training[/yellow]]")
+        rich.print("[Starting Training]")
 
-        # Seed
-        L.seed_everything(7, verbose=False)
+        # Set random seed for reproducibility
+        rich.print(f"Setting random seed to: {self.random_seed}")
+        L.seed_everything(self.random_seed, workers=True)
+        torch.manual_seed(self.random_seed)  # Set PyTorch seed explicitly
 
-        # Initialize Train Dataset
-        train_dataset = MiniPileDataset(root_path=self.minipile_root_path)
-
-        # Initialize Validation Dataset
-        val_dataset = MiniPileDataset(
-            root_path=self.minipile_root_path, validation=True
+        # Initialize Train Dataset with random seed
+        self.train_dataset = MiniPileDataset(
+            root_path=self.minipile_root_path,
+            random_seed=self.random_seed,
+            sequence_length=self.sequence_length,
         )
 
-        # Override Batch Size
-        if batch:
-            if self.batch:
-                self.batch = batch
-        else:
-            if not self.batch:
-                self.batch = 4
+        # Initialize Validation Dataset with random seed
+        self.val_dataset = MiniPileDataset(
+            root_path=self.minipile_root_path,
+            validation=True,
+            random_seed=self.random_seed,
+            sequence_length=self.sequence_length,
+        )
 
-        # Construct Collator
-        collator = MiniPileCollate()
+        # Get dataloaders
+        train_dataloader, val_dataloader = self._get_dataloaders()
 
-        # Construct DataLoader
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=self.batch,
-            num_workers=3,
-            collate_fn=collator,
+        # Display hyperparameters
+        self._display_hyperparameters(batch)
+
+        # Load or create model
+        model = self._initialize_model(model_path, batch)
+
+        # Configure callbacks
+        callbacks = self._setup_callbacks()
+
+        # Select training device
+        accelerator = "gpu" if self.use_gpu and torch.cuda.is_available() else "cpu"
+
+        # Configure trainer
+        trainer = L.Trainer(
+            max_epochs=self.epochs,
+            callbacks=callbacks,
+            logger=self.wandb_logger,
+            accelerator=accelerator,
+            devices=self.devices,
+            deterministic=True if self.random_seed is not None else False,
+            precision="16-mixed" if self.tensor_cores else "32",
+        )
+
+        # Train model
+        trainer.fit(model, train_dataloader, val_dataloader)
+
+        # Clean up GPU memory
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            gc.collect()
+
+        rich.print("[Training Done]")
+        return True
+
+    def _get_dataloaders(
+        self,
+    ) -> Tuple[
+        DataLoader[Dict[str, torch.Tensor]], DataLoader[Dict[str, torch.Tensor]]
+    ]:
+        """
+        Get DataLoaders for training and validation.
+
+        :return: Tuple of (train_dataloader, val_dataloader)
+        """
+        if self.train_dataset is None or self.val_dataset is None:
+            raise ValueError("Datasets must be initialized before creating dataloaders")
+
+        # Initialize collate function
+        collate_fn = MiniPileCollate(self.sequence_length)
+
+        # Define worker init function with proper type annotation
+        def worker_init_fn(worker_id: int) -> None:
+            """Initialize worker with reproducible seed"""
+            torch.manual_seed(self.random_seed + worker_id)
+
+        # Initialize train dataloader
+        train_batch_size = self.batch if self.batch is not None else 4
+        train_dataloader = DataLoader[Dict[str, torch.Tensor]](
+            self.train_dataset,
+            batch_size=train_batch_size,
+            shuffle=True,
+            num_workers=2,
+            pin_memory=True,
+            collate_fn=collate_fn,
+            prefetch_factor=2,
             persistent_workers=True,
-        )
-        val_dataloader = DataLoader(
-            val_dataset,
-            batch_size=self.batch,
-            num_workers=3,
-            collate_fn=collator,
-            persistent_workers=True,
+            worker_init_fn=worker_init_fn,
+            generator=torch.Generator().manual_seed(self.random_seed),
         )
 
+        # Initialize validation dataloader
+        val_dataloader = DataLoader[Dict[str, torch.Tensor]](
+            self.val_dataset,
+            batch_size=train_batch_size,
+            shuffle=False,
+            num_workers=2,
+            pin_memory=True,
+            collate_fn=collate_fn,
+            prefetch_factor=2,
+            persistent_workers=True,
+            worker_init_fn=worker_init_fn,
+            generator=torch.Generator().manual_seed(self.random_seed),
+        )
+
+        return train_dataloader, val_dataloader
+
+    def _display_hyperparameters(self, batch: Optional[int] = None) -> None:
+        """
+        Display hyperparameters in a rich table format.
+
+        :param batch: Optional batch size to override settings
+        """
+        # Print hyperparameters
         table = Table(title="Hyperparameters")
         table.add_column("Batch", style="cyan", no_wrap=True)
         table.add_column("Learning Rate", style="cyan", no_wrap=True)
         table.add_column("Epochs", style="cyan", no_wrap=True)
         table.add_column("Hidden Size", style="cyan", no_wrap=True)
+        table.add_column("Layer Count", style="cyan", no_wrap=True)
+        table.add_column("Random Seed", style="cyan", no_wrap=True)
+
+        # Use provided batch if available
+        batch_size = batch if batch is not None else self.batch
+
         table.add_row(
-            str(self.batch),
+            str(batch_size),
             str(self.lr),
             str(self.epochs),
-            str(self.hidden_dim),
+            str(self.hidden_size),
+            str(self.layer_count),
+            str(self.random_seed),
         )
         rich.print(table)
 
         # Set Float32 Matmul Precision
         if self.tensor_cores:
             torch.set_float32_matmul_precision("high")
-            rich.print("Tensor Core Precision: [green]High[/green]")
+            rich.print("Tensor Core Precision: High")
+
+        # Set deterministic mode for reproducibility if needed
+        if self.random_seed is not None:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            rich.print("CUDNN: Deterministic mode enabled for reproducibility")
+
+    def _initialize_model(
+        self, model_path: Optional[Path], batch: Optional[int]
+    ) -> OpenGrammar:
+        """
+        Initialize the model, either from a checkpoint or create a new one.
+
+        :param model_path: Path to an existing model checkpoint
+        :param batch: Optional batch size override
+        :return: Initialized OpenGrammar model
+        """
+        # Get batch size from parameters or config
+        batch_size = batch if batch is not None else self.batch
 
         # Load Checkpoint
         if model_path:
             model = OpenGrammar.load_from_checkpoint(
-                model_path,
+                str(model_path),
                 settings=self.settings,
                 wandb_logger=self.wandb_logger,
             )
         else:
             model = OpenGrammar(
                 settings=self.settings,
+                hidden_size=self.hidden_size,
+                layer_count=self.layer_count,
                 lr=self.lr,
-                hidden_dim=self.hidden_dim,
                 wandb_logger=self.wandb_logger,
-                batch_size=self.batch,
+                batch_size=batch_size,
             )
+
+        return model
+
+    def _setup_callbacks(self) -> List[Any]:
+        """
+        Set up Lightning callbacks for training.
+
+        :return: List of callback objects
+        """
+        # Make sure the checkpoint directory exists
+        self.checkpoint_dir.mkdir(exist_ok=True, parents=True)
 
         # Callbacks
         checkpoint_callback = ModelCheckpoint(
             monitor="val_loss",
-            dirpath="./checkpoints",
-            filename=f"opengrammar",
+            dirpath=str(self.checkpoint_dir),
+            filename="opengrammar-{epoch:02d}-{val_loss:.4f}",
             save_top_k=3,
             mode="min",
         )
-        lr_monitor = LearningRateMonitor(logging_interval="epoch")
-        rich_progress_bar = RichProgressBar()
 
-        # Setup Trainer
-        trainer = L.Trainer(
-            max_epochs=self.epochs,
-            callbacks=[checkpoint_callback, lr_monitor, rich_progress_bar],
-            devices=self.devices,
-            accelerator="gpu",
-            enable_progress_bar=True,
-            logger=self.wandb_logger,
-            log_every_n_steps=1,
-            strategy="auto",
-            precision="16-mixed" if self.tensor_cores else None,
-            fast_dev_run=self.debug,
-            inference_mode=False,
-        )
+        lr_monitor = LearningRateMonitor(logging_interval="step")
+        rich_progress = RichProgressBar()
 
-        # Start Model Training
-        trainer.fit(model, train_dataloader, val_dataloader)
-
-        # Clear Cache
-        torch.cuda.empty_cache()
-        _ = gc.collect()
-
-        if "wandb_token" in self.settings:
-            self.wandb_logger.experiment.finish()
-
-        rich.print("[[green]Training Done[/green]]")
-        return True
+        return [checkpoint_callback, lr_monitor, rich_progress]

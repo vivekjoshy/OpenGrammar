@@ -95,9 +95,10 @@ export OG_WANDB_TOKEN=token_goes_here
 | `batch`         | `bool` | `4`       | The number of samples per batch.                       |
 | `lr`            | `int`  | `0.00001` | The learning rate.                                     |
 | `epochs`        | `int`  | `10`      | The number of epochs to train for.                     |
-| `hidden_dim`    | `int`  | `128`     | The number of hidden dimensions used for model layers. |
+| `hidden_size`   | `int`  | `128`     | The number of hidden dimensions used for model layers. |
 | `tensor_cores`  | `bool` | `true`    | Enable or disable usage of tensor cores in your GPU.   |
 | `devices`       | `int`  | `1`       | The number of GPUs available to use.                   |
+| `random_seed`   | `int`  | `7`       | A random seed for reproducible training.               |
 | `debug`         | `bool` | `False`   | Disables expensive code and prints debugging logs.     |
 
 ### Sample Config
@@ -111,5 +112,6 @@ epochs = 10
 hidden_dim = 16
 tensor_cores = true
 devices = 1
+random_seed = 7
 debug = false
 ```

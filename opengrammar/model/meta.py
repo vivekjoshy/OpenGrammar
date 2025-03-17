@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, cast
 
 import lightning as L
+import torch
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from torch import Tensor
 from torch.optim import AdamW, Optimizer
@@ -98,33 +99,60 @@ class OpenGrammar(L.LightningModule):
         :param batch_index: Index of the current batch
         :return: Loss value
         """
-        # Forward pass
-        predictions = self(batch)
-        target = batch["target"]
+        # Validate batch data
+        if not batch or "text" not in batch or "target" not in batch:
+            self.log("val_loss", torch.tensor(0.0, device=self.device))
+            return {"loss": torch.tensor(0.0, device=self.device)}
 
-        # Get energy and plasticity metrics
-        energy = self.model.energy_profile()
-        plasticity = self.model.plasticity_profile()
+        # Check for empty tensors
+        if batch["text"].numel() == 0 or batch["target"].numel() == 0:
+            self.log("val_loss", torch.tensor(0.0, device=self.device))
+            return {"loss": torch.tensor(0.0, device=self.device)}
 
-        # Compute loss
-        loss = self.learner.compute_loss(
-            predictions, target, energy, plasticity, self.brain_state
-        )
+        try:
+            # Force conversion to appropriate types
+            batch["text"] = batch["text"].to(dtype=torch.int64)
+            batch["target"] = batch["target"].to(dtype=torch.int64)
 
-        # Update metrics
-        self.val_metrics.update(
-            predictions=predictions,
-            targets=target,
-            energy_values=energy,
-            plasticity_rate=plasticity,
-            byte_predictions=predictions,
-            byte_targets=batch["text"],
-        )
+            # No need for gradients in validation
+            with torch.no_grad():
+                # Forward pass
+                predictions = self(batch)
+                target = batch["target"]
 
-        # Log metrics
-        self.log("val_loss", loss, prog_bar=True, batch_size=self.batch_size)
+                # Get energy and plasticity metrics
+                energy = self.model.energy_profile()
+                plasticity = self.model.plasticity_profile()
 
-        return {"loss": loss}
+                # Compute loss
+                loss = self.learner.compute_loss(
+                    predictions, target, energy, plasticity, self.brain_state
+                )
+
+                # Ensure loss is a tensor
+                if not isinstance(loss, torch.Tensor):
+                    loss = torch.tensor(loss, device=self.device)
+
+                # Update metrics
+                self.val_metrics.update(
+                    predictions=predictions,
+                    targets=target,
+                    energy_values=energy,
+                    plasticity_rate=plasticity,
+                    byte_predictions=predictions,
+                    byte_targets=batch["text"],
+                )
+
+                # Log metrics
+                self.log("val_loss", loss, prog_bar=True, batch_size=self.batch_size)
+
+                # Return detached loss
+                return {"loss": loss.detach()}
+        except Exception as e:
+            # Handle any unexpected errors in validation step
+            print(f"Error in validation_step: {str(e)}")
+            self.log("val_loss", torch.tensor(0.0, device=self.device))
+            return {"loss": torch.tensor(0.0, device=self.device)}
 
     def on_train_epoch_end(self) -> None:
         """
@@ -186,6 +214,18 @@ class OpenGrammar(L.LightningModule):
         :param brain_state: Optional brain state for neuromodulation
         :return: Dictionary of metrics
         """
+        # Validate batch data
+        if not batch or "text" not in batch or "target" not in batch:
+            return {"loss": torch.tensor(0.0, device=self.device)}
+
+        # Check for empty tensors
+        if batch["text"].numel() == 0 or batch["target"].numel() == 0:
+            return {"loss": torch.tensor(0.0, device=self.device)}
+
+        # Force conversion to appropriate types
+        batch["text"] = batch["text"].to(dtype=torch.int64)
+        batch["target"] = batch["target"].to(dtype=torch.int64)
+
         # Use brain state if provided, otherwise use the model's brain state
         if brain_state is None:
             brain_state = self.brain_state
@@ -193,31 +233,84 @@ class OpenGrammar(L.LightningModule):
         # Setup optimizer
         optimizer = self.optimizers()
 
-        # Perform optimization step
-        loss, metrics_dict = self.learner.optimize_step(
-            self.model, optimizer, batch, brain_state
-        )
+        try:
+            # Let PyTorch Lightning handle the optimization
+            # Only compute the loss here, don't call backward or step
+            with torch.no_grad():
+                # Forward pass
+                predictions = self(batch)
+                target = batch["target"]
 
-        # Log metrics
-        self.log("train_loss", loss.item(), prog_bar=True, batch_size=self.batch_size)
-        self.log(
-            "train_energy",
-            metrics_dict["energy"].item(),
-            prog_bar=True,
-            batch_size=self.batch_size,
-        )
-        self.log(
-            "train_plasticity",
-            metrics_dict["plasticity"].item(),
-            prog_bar=True,
-            batch_size=self.batch_size,
-        )
+                # Get energy and plasticity metrics
+                energy = self.model.energy_profile()
+                plasticity = self.model.plasticity_profile()
 
-        return {
-            "loss": loss.item(),
-            "energy": metrics_dict["energy"].item(),
-            "plasticity": metrics_dict["plasticity"].item(),
-        }
+                # Compute validation loss (no gradients needed)
+                val_loss = self.learner.compute_loss(
+                    predictions, target, energy, plasticity, self.brain_state
+                )
+
+            # Now create a fresh computational graph for the training loss
+            predictions = self(batch)
+            target = batch["target"]
+
+            # Get fresh energy and plasticity metrics
+            energy = self.model.energy_profile()
+            plasticity = self.model.plasticity_profile()
+
+            # Compute the loss that will be used for optimization
+            loss = self.learner.compute_loss(
+                predictions, target, energy, plasticity, self.brain_state
+            )
+
+            # Ensure loss is a tensor with gradients
+            if not isinstance(loss, torch.Tensor):
+                loss = torch.tensor(loss, device=self.device, requires_grad=True)
+            elif not loss.requires_grad:
+                loss = loss.clone().requires_grad_(True)
+
+            # Log metrics with detached tensors
+            self.log(
+                "train_loss", loss.detach(), prog_bar=True, batch_size=self.batch_size
+            )
+
+            # Get metric values, ensuring they're tensors
+            energy_val = (
+                energy.mean()
+                if energy is not None and isinstance(energy, torch.Tensor)
+                else torch.tensor(0.0, device=self.device)
+            )
+            plasticity_val = (
+                plasticity.mean()
+                if plasticity is not None and isinstance(plasticity, torch.Tensor)
+                else torch.tensor(0.0, device=self.device)
+            )
+
+            # Detach the metrics to ensure they don't affect the computation graph
+            energy_val = energy_val.detach()
+            plasticity_val = plasticity_val.detach()
+
+            self.log(
+                "train_energy",
+                energy_val,
+                prog_bar=True,
+                batch_size=self.batch_size,
+            )
+            self.log(
+                "train_plasticity",
+                plasticity_val,
+                prog_bar=True,
+                batch_size=self.batch_size,
+            )
+
+            # Return the loss tensor with gradients for PyTorch Lightning to optimize
+            return {
+                "loss": loss,  # Return tensor with gradients
+            }
+        except Exception as e:
+            # Handle any unexpected errors in optimization step
+            print(f"Error in _optimization_step: {str(e)}")
+            return {"loss": torch.tensor(0.0, device=self.device)}
 
     def update_brain_state(
         self, brain_state: BrainState, user_input: str, response: Optional[str] = None

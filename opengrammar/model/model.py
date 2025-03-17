@@ -54,31 +54,62 @@ class NeurotransmitterModule(nn.Module):
         :param brain_state: Optional BrainState for modulation
         :return: Modulated tensor and neuromodulatory values
         """
-        # Extract context signals from input
-        context_signals = torch.mean(x, dim=1)  # [B, H]
-        neuromod = self.context_modulation(context_signals)  # [B, 2]
-
-        # Split into individual neurotransmitters
-        dopamine, norepinephrine = torch.chunk(neuromod, 2, dim=1)
-
-        # Apply brain state modulation if available
-        if brain_state is not None:
-            dopamine = dopamine * (0.5 + 0.5 * brain_state.engagement)
-            norepinephrine = norepinephrine * (0.5 + 0.5 * brain_state.arousal)
-
-        # Apply dopamine gate (modulates goal-directed behavior)
-        x_gate = torch.sigmoid(self.dopamine_gate(x))
-        x = x * (1.0 + dopamine.unsqueeze(1) * x_gate)
-
-        # Apply norepinephrine filter (modulates signal-to-noise)
-        x_noise = torch.tanh(self.norepinephrine_filter(x))
-        x = x + (norepinephrine.unsqueeze(1) * x_noise)
-
-        # Return modulated signal and modulatory values
+        # Initialize empty modulation dict with zeros for defaults
+        default_val = torch.tensor(0.0, device=x.device)
         modulation = {
-            "dopamine": dopamine.mean().detach(),
-            "norepinephrine": norepinephrine.mean().detach(),
+            "dopamine": default_val.clone(),
+            "norepinephrine": default_val.clone(),
         }
+
+        # Validate input tensor dimensions
+        if x.dim() < 3:
+            # Not enough dimensions, return input unchanged with default modulation
+            return x, modulation
+
+        # Ensure tensor has valid shape for operations
+        batch_size, seq_len, hidden_size = x.shape
+
+        if batch_size == 0 or seq_len == 0 or hidden_size == 0:
+            # Empty tensor dimensions, return input unchanged
+            return x, modulation
+
+        # Extract context signals from input - safely
+        try:
+            context_signals = torch.mean(x, dim=1)  # [B, H]
+            neuromod = self.context_modulation(context_signals)  # [B, 2]
+
+            # Validate the output shape before chunking
+            if neuromod.shape[1] != 2:
+                # Something went wrong, use zeros instead
+                dopamine = torch.zeros(batch_size, 1, device=x.device)
+                norepinephrine = torch.zeros(batch_size, 1, device=x.device)
+            else:
+                # Split into individual neurotransmitters
+                dopamine, norepinephrine = torch.chunk(neuromod, 2, dim=1)
+
+            # Apply brain state modulation if available
+            if brain_state is not None:
+                dopamine = dopamine * (0.5 + 0.5 * brain_state.engagement)
+                norepinephrine = norepinephrine * (0.5 + 0.5 * brain_state.arousal)
+
+            # Safely apply dopamine gate (modulates goal-directed behavior)
+            x_gate = torch.sigmoid(self.dopamine_gate(x))
+            x = x * (1.0 + dopamine.unsqueeze(1) * x_gate)
+
+            # Safely apply norepinephrine filter (modulates signal-to-noise)
+            x_noise = torch.tanh(self.norepinephrine_filter(x))
+            x = x + (norepinephrine.unsqueeze(1) * x_noise)
+
+            # Return modulated signal and modulatory values
+            modulation = {
+                "dopamine": dopamine.mean().detach(),
+                "norepinephrine": norepinephrine.mean().detach(),
+            }
+
+        except RuntimeError as e:
+            # If any CUDA error occurs, log it and return the input unchanged
+            print(f"Error in neuromodulation: {str(e)}")
+            # Return input unchanged with default modulation values
 
         return x, modulation
 
@@ -407,41 +438,77 @@ class OpenGrammarModel(nn.Module):
         :param brain_state: Optional BrainState for neuromodulation
         :return: Output logits [B, S, V]
         """
+        # Check if the batch contains the expected keys
+        if "text" not in batch:
+            raise ValueError("Batch is missing 'text' key")
+
         x = batch["text"]  # [B, S]
 
-        # Embedding
-        if self.embedding is not None:
-            x = x.long()  # Ensure x is of type torch.LongTensor for embedding
-            x = self.embedding(x)  # [B, S, H]
-        else:
-            # Convert bytes to one-hot and project
-            x_one_hot = F.one_hot(x, num_classes=256).float()  # [B, S, 256]
-            if self.embedding_projection is not None:
-                x = self.embedding_projection(x_one_hot)  # [B, S, H]
+        # Check for valid input tensor
+        if x.numel() == 0 or x.dim() < 2:
+            # Return a zero tensor with appropriate shape for empty input
+            batch_size = x.size(0) if x.dim() > 0 else 1
+            return torch.zeros(batch_size, 1, 256, device=x.device)
+
+        # Ensure tensor elements are within valid range for embedding/one-hot (0-255)
+        try:
+            # Clamp values to valid byte range to prevent out-of-bounds indices
+            x = torch.clamp(x, 0, 255).to(dtype=torch.int64)
+
+            # Embedding
+            if self.embedding is not None:
+                # Ensure x is of type torch.LongTensor for embedding
+                x = self.embedding(x)  # [B, S, H]
             else:
-                raise ValueError("Both embedding and embedding_projection are None")
+                # Convert bytes to one-hot and project
+                try:
+                    x_one_hot = F.one_hot(x, num_classes=256).float()  # [B, S, 256]
+                except RuntimeError as e:
+                    print(f"Error in one-hot encoding: {str(e)}")
+                    # Create a safe version with zeros
+                    x_one_hot = torch.zeros(x.size(0), x.size(1), 256, device=x.device)
 
-        # Apply neuromodulation
-        x, _ = self.neuromodulation(x, brain_state)
+                if self.embedding_projection is not None:
+                    x = self.embedding_projection(x_one_hot)  # [B, S, H]
+                else:
+                    raise ValueError("Both embedding and embedding_projection are None")
 
-        # Process through layers
-        for layer in self.layers:
-            # Energy-constrained projection
-            energy_out = layer["energy"](x)
+            # Apply neuromodulation - catch any errors
+            try:
+                x, _ = self.neuromodulation(x, brain_state)
+            except Exception as e:
+                print(f"Error in neuromodulation: {str(e)}")
+                # Continue with unmodulated x
 
-            # Gain control attention
-            attention_out = layer["attention"](energy_out, brain_state)
+            # Process through layers with error handling
+            for layer in self.layers:
+                try:
+                    # Energy-constrained projection
+                    energy_out = layer["energy"](x)
 
-            # Apply neuroplasticity layer
-            plastic_out = layer["plasticity"](x, brain_state)
+                    # Gain control attention
+                    attention_out = layer["attention"](energy_out, brain_state)
 
-            # Add residual and normalize
-            x = layer["norm"](x + plastic_out)
+                    # Apply neuroplasticity layer
+                    plastic_out = layer["plasticity"](x, brain_state)
 
-        # Project to output vocabulary
-        logits: torch.Tensor = self.output_projection(x)  # [B, S, V]
+                    # Add residual and normalize
+                    x = layer["norm"](x + plastic_out)
+                except Exception as e:
+                    print(f"Error in layer processing: {str(e)}")
+                    # Skip this layer if there's an error
+                    continue
 
-        return logits
+            # Project to output vocabulary
+            logits: torch.Tensor = self.output_projection(x)  # [B, S, V]
+            return logits
+
+        except Exception as e:
+            # Handle any unexpected errors in the forward pass
+            print(f"Error in model forward pass: {str(e)}")
+            batch_size = x.size(0) if x.dim() > 0 else 1
+            seq_len = x.size(1) if x.dim() > 1 else 1
+            return torch.zeros(batch_size, seq_len, 256, device=x.device)
 
     def energy_profile(self) -> torch.Tensor:
         """

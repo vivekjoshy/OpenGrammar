@@ -6,7 +6,6 @@ import lightning as L
 import rich
 import torch
 import torch.cuda
-import wandb
 from dynaconf import LazySettings
 from lightning.pytorch.callbacks import (
     LearningRateMonitor,
@@ -17,6 +16,7 @@ from lightning.pytorch.loggers import WandbLogger
 from rich.table import Table
 from torch.utils.data import DataLoader
 
+import wandb
 from opengrammar.data import MiniPileCollate, MiniPileDataset
 from opengrammar.model.meta import OpenGrammar
 

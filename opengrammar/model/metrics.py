@@ -46,7 +46,7 @@ class OpenGrammarMetrics(torchmetrics.Metric):
         - V: Vocabulary size
 
         :param predictions: Model predictions [B, S, V]
-        :param targets: Target distribution [B, S, V]
+        :param targets: Target distribution [B, S, V] or integer targets [B, S]
         :param energy_values: Energy usage values (optional)
         :param plasticity_rate: Neuroplasticity rate (optional)
         :param byte_predictions: Byte-level predictions [B, S, 256] (optional)
@@ -56,14 +56,46 @@ class OpenGrammarMetrics(torchmetrics.Metric):
         batch_tensor = torch.tensor(batch_size, device=self.num_samples.device)
         self.num_samples += batch_tensor
 
-        # Calculate KL divergence
-        kl_div = torch.nn.functional.kl_div(
-            torch.log_softmax(predictions, dim=-1),
-            targets,
-            reduction="batchmean",
-            log_target=False,
-        )
-        self.total_kl_div += kl_div * batch_tensor
+        # Convert predictions to float for numerical stability
+        predictions = predictions.to(dtype=torch.float32)
+
+        # Handle the case where targets are integer indices (not probability distributions)
+        if len(targets.shape) != len(predictions.shape):
+            # Convert integer targets to one-hot vectors
+            vocab_size = predictions.size(-1)
+
+            # Ensure targets have proper shape and type
+            targets = targets.to(dtype=torch.long)
+
+            # Create a safe version of targets for one-hot encoding
+            # Clamp to valid range
+            targets_flat = targets.reshape(-1).clamp(0, vocab_size - 1)
+
+            # Create one-hot targets
+            target_probs = torch.zeros(
+                targets_flat.size(0),
+                vocab_size,
+                device=targets.device,
+                dtype=torch.float32,
+            )
+
+            # Use index_fill instead of scatter for safety
+            for i in range(targets_flat.size(0)):
+                idx = targets_flat[i].item()
+                target_probs[i, int(idx)] = 1.0
+
+            # Reshape to match predictions
+            target_probs = target_probs.reshape(
+                targets.size(0), targets.size(1), vocab_size
+            )
+        else:
+            # Targets are already probability distributions
+            target_probs = targets.to(dtype=torch.float32)
+
+        # Calculate cross-entropy instead of KL divergence to avoid numerical issues
+        log_probs = torch.log_softmax(predictions, dim=-1)
+        cross_entropy = -torch.mean(torch.sum(target_probs * log_probs, dim=-1))
+        self.total_kl_div += cross_entropy * batch_tensor
 
         # Update energy metrics if available
         if energy_values is not None:

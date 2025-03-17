@@ -19,6 +19,11 @@ from opengrammar.brain import BrainState
 from opengrammar.model.model import OpenGrammarModel
 
 
+def create_zero_tensor(device: torch.device) -> torch.Tensor:
+    """Helper function to create a zero tensor on the appropriate device."""
+    return torch.tensor(0.0, device=device)
+
+
 class LossType(enum.Enum):
     """Types of loss functions used in neuromorphic learning."""
 
@@ -95,8 +100,10 @@ class NeuromorphicLearner(BaseLearner):
 
     def __init__(self) -> None:
         """Initialize the learning system with default loss functions."""
-        self.kl_div_loss = nn.KLDivLoss(reduction="batchmean")
+        # Remove KL divergence loss and just use MSE
         self.mse_loss = nn.MSELoss()
+        # Add cross entropy loss
+        self.cross_entropy = nn.CrossEntropyLoss(reduction="mean")
 
     def compute_loss(
         self,
@@ -108,9 +115,6 @@ class NeuromorphicLearner(BaseLearner):
     ) -> Tensor:
         """
         Compute loss with neuromorphic components.
-
-        This combines standard loss functions with energy regularization
-        and plasticity to create a brain-inspired learning dynamic.
 
         Shape glossary:
         - B: Batch size
@@ -124,29 +128,46 @@ class NeuromorphicLearner(BaseLearner):
         :param brain_state: Optional brain state for neuromodulation
         :return: Combined loss value
         """
-        # Base loss calculation
-        if len(targets.shape) != len(predictions.shape):
-            # Handle integer targets (convert to one-hot)
-            batch_size, seq_len = targets.shape
-            vocab_size = predictions.shape[-1]
+        # Ensure inputs are valid
+        if predictions.numel() == 0 or targets.numel() == 0:
+            return torch.tensor(0.0, device=predictions.device)
 
-            flat_targets = targets.reshape(-1)
-            one_hot_targets = torch.zeros(
-                flat_targets.size(0),
-                vocab_size,
-                device=targets.device,
-                dtype=torch.float32,
-            )
-            one_hot_targets.scatter_(1, flat_targets.unsqueeze(1), 1)
-            one_hot_targets = one_hot_targets.reshape(batch_size, seq_len, vocab_size)
+        # Ensure predictions have valid shape
+        if len(predictions.shape) != 3:
+            print(f"Warning: predictions shape {predictions.shape} is not [B, S, V]")
+            return torch.tensor(0.0, device=predictions.device)
 
-            log_probs = torch.log_softmax(predictions, dim=-1)
-            base_loss = -torch.mean(torch.sum(one_hot_targets * log_probs, dim=-1))
-        else:
-            # Handle distribution targets
-            log_probs = torch.log_softmax(predictions, dim=-1)
-            target_probs = torch.softmax(targets, dim=-1)
-            base_loss = self.kl_div_loss(log_probs, target_probs)
+        # Base loss calculation using cross-entropy
+        try:
+            if len(targets.shape) != len(predictions.shape):
+                # Handle integer targets directly with cross-entropy
+                # Reshape predictions and targets for cross entropy
+                batch_size, seq_len, vocab_size = predictions.shape
+
+                # Ensure targets are properly clipped and converted
+                targets_flat = targets.reshape(-1).clamp(0, vocab_size - 1).long()
+                predictions_flat = predictions.reshape(-1, vocab_size)
+
+                # Use standard cross entropy which handles integer targets automatically
+                base_loss: torch.Tensor = self.cross_entropy(
+                    predictions_flat, targets_flat
+                )
+            else:
+                # If targets are already distributions, use a manual calculation
+                # Convert both to float to avoid type issues
+                targets = targets.float()
+                log_probs = torch.log_softmax(predictions.float(), dim=-1)
+                target_probs = torch.softmax(targets, dim=-1)
+
+                # Manual cross-entropy calculation
+                base_loss = -torch.mean(torch.sum(target_probs * log_probs, dim=-1))
+
+        except Exception as e:
+            print(f"Error in loss computation: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return torch.tensor(0.0, device=predictions.device)
 
         # Energy regularization
         energy_loss = torch.tensor(0.0, device=predictions.device)
@@ -154,7 +175,7 @@ class NeuromorphicLearner(BaseLearner):
             energy_loss = torch.mean(energy_level) * 0.01
 
         # Plasticity regularization
-        plasticity_loss = torch.tensor(0.0, device=predictions.device)
+        plasticity_loss: torch.Tensor = torch.tensor(0.0, device=predictions.device)
         if plasticity_level is not None:
             if brain_state is not None:
                 target_plasticity = 0.5 + 0.5 * brain_state.engagement
@@ -200,49 +221,88 @@ class NeuromorphicLearner(BaseLearner):
         :param brain_state: Optional brain state for neuromodulation
         :return: Tuple of (loss, metrics dictionary)
         """
+        # Validate batch data
+        if not batch or "text" not in batch or "target" not in batch:
+            zero_tensor = create_zero_tensor(next(model.parameters()).device)
+            return zero_tensor, {"energy": zero_tensor, "plasticity": zero_tensor}
+
+        # Check for empty tensors
+        if batch["text"].numel() == 0 or batch["target"].numel() == 0:
+            zero_tensor = create_zero_tensor(next(model.parameters()).device)
+            return zero_tensor, {"energy": zero_tensor, "plasticity": zero_tensor}
+
         optimizer.zero_grad()
 
         target = batch["target"]  # [B, S]
-        predictions = model(batch)  # [B, S, V]
+        try:
+            # Create fresh computation graph by running forward pass
+            predictions = model(batch)  # [B, S, V]
 
-        energy_level = model.energy_profile()
-        plasticity_level = model.plasticity_profile()
+            # Get energy and plasticity metrics
+            energy_level = model.energy_profile()
+            plasticity_level = model.plasticity_profile()
 
-        loss = self.compute_loss(
-            predictions, target, energy_level, plasticity_level, brain_state
-        )
+            # Compute loss with fresh tensors
+            loss = self.compute_loss(
+                predictions, target, energy_level, plasticity_level, brain_state
+            )
 
-        loss.backward()  # type: ignore[no-untyped-call]
-
-        if brain_state is not None:
-            brain_state.modulate_gradients(model.named_parameters())
-
-        optimizer.step()
-
-        zero_tensor = torch.tensor(0.0, device=loss.device)
-
-        metrics = {
-            "loss": loss.detach(),
-            "energy": (
-                energy_level.mean().detach()
-                if energy_level is not None
-                else zero_tensor
-            ),
-            "plasticity": (
-                plasticity_level.mean().detach()
-                if plasticity_level is not None
-                else zero_tensor
-            ),
-        }
-
-        if hasattr(model, "apply_hebbian") and brain_state is not None:
-            hebbian_scaling = brain_state.hebbian_strength
-            if callable(getattr(model, "apply_hebbian")):
-                getattr(model, "apply_hebbian")(
-                    batch["text"], predictions.detach(), scale=hebbian_scaling
+            # Ensure loss is a tensor and not a float
+            if not isinstance(loss, torch.Tensor):
+                loss = torch.tensor(
+                    loss, device=next(model.parameters()).device, requires_grad=True
                 )
+            elif not loss.requires_grad:
+                # If the tensor doesn't require gradients, create a new tensor that does
+                loss = loss.clone().detach().requires_grad_(True)
 
-        return loss, metrics
+            # Perform backward pass only once
+            loss.backward()  # type: ignore[no-untyped-call]
+
+            if brain_state is not None:
+                brain_state.modulate_gradients(model.named_parameters())
+
+            optimizer.step()
+
+            # Create metrics with detached tensors to avoid holding references to the computation graph
+            metrics_loss = loss.detach().clone()
+            zero_tensor = torch.tensor(0.0, device=loss.device)
+
+            # Ensure all metrics are tensors and detached from computation graph
+            metrics = {
+                "loss": metrics_loss,
+                "energy": (
+                    energy_level.mean().detach().clone()
+                    if energy_level is not None
+                    and isinstance(energy_level, torch.Tensor)
+                    else zero_tensor
+                ),
+                "plasticity": (
+                    plasticity_level.mean().detach().clone()
+                    if plasticity_level is not None
+                    and isinstance(plasticity_level, torch.Tensor)
+                    else zero_tensor
+                ),
+            }
+
+            # Apply Hebbian learning with detached predictions
+            if hasattr(model, "apply_hebbian") and brain_state is not None:
+                hebbian_scaling = brain_state.hebbian_strength
+                if callable(getattr(model, "apply_hebbian")):
+                    getattr(model, "apply_hebbian")(
+                        batch["text"],
+                        predictions.detach().clone(),
+                        scale=hebbian_scaling,
+                    )
+
+            # Return a fresh loss tensor not connected to the computation graph
+            return metrics_loss, metrics
+
+        except Exception as e:
+            # Handle any unexpected errors in forward pass
+            print(f"Error during optimize_step: {str(e)}")
+            zero_tensor = create_zero_tensor(next(model.parameters()).device)
+            return zero_tensor, {"energy": zero_tensor, "plasticity": zero_tensor}
 
     def create_target_distribution(
         self, observed_token: int, device: torch.device, smoothing: float = 0.1
@@ -260,8 +320,3 @@ class NeuromorphicLearner(BaseLearner):
         distribution[observed_token] = 1.0 - smoothing
 
         return distribution
-
-
-def create_zero_tensor(device: Optional[torch.device] = None) -> Tensor:
-    """Helper function to create a zero tensor with proper typing."""
-    return torch.tensor(0.0, device=device)

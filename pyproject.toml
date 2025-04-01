@@ -38,6 +38,8 @@ profile = "black"
 [tool.mypy]
 python_version = "3.12"
 strict = true
+disable_error_code = "import-untyped"
+
 
 [project]
 name = "opengrammar"
@@ -68,7 +70,7 @@ dependencies = [
   "loguru~=0.7",
   "pandas~=2.2",
   "pyarrow~=19.0",
-  "rich~=13.9",
+  "rich~=14.0",
   "scikit-learn>=1.6",
   "setuptools~=75.8",
   "torchmetrics~=1.6",

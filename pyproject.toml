@@ -38,6 +38,8 @@ profile = "black"
 [tool.mypy]
 python_version = "3.12"
 strict = true
+disable_error_code = "import-untyped"
+
 
 [project]
 name = "opengrammar"
@@ -113,7 +115,7 @@ build = [
     "isort~=6.0",
     "black[jupyter]~=25.1",
     "towncrier~=24.8",
-    "bump-my-version~=0.32",
+    "bump-my-version~=1.1",
 ]
 
 [tool.setuptools]

@@ -104,7 +104,7 @@ tests = [
     "tox~=4.24",
     "mypy~=1.15",
     "httpx~=0.28",
-    "pytest~=8.3",
+    "pytest~=9.0",
     "coverage~=7.6",
     "pytest-cov~=6.0",
 ]

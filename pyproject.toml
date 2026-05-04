@@ -90,7 +90,7 @@ Tracker = "https://github.com/vivekjoshy/OpenGrammar/issues"
 
 [project.optional-dependencies]
 docs = [
-    "sphinx~=8.1",
+    "sphinx~=9.1",
     "pygments~=2.19",
     "shibuya~=2025.2",
     "matplotlib~=3.10",

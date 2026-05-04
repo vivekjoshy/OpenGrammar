@@ -111,7 +111,7 @@ tests = [
 build = [
     "build~=1.2",
     "isort~=6.0",
-    "black[jupyter]~=25.1",
+    "black[jupyter]~=26.3",
     "towncrier~=24.8",
     "bump-my-version~=0.32",
 ]

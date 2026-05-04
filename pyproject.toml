@@ -106,7 +106,7 @@ tests = [
     "httpx~=0.28",
     "pytest~=8.3",
     "coverage~=7.6",
-    "pytest-cov~=6.0",
+    "pytest-cov~=7.1",
 ]
 build = [
     "build~=1.2",

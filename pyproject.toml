@@ -102,7 +102,7 @@ docs = [
 ]
 tests = [
     "tox~=4.24",
-    "mypy~=1.15",
+    "mypy~=2.0",
     "httpx~=0.28",
     "pytest~=8.3",
     "coverage~=7.6",
